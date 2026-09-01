@@ -86,3 +86,158 @@
     const observer = new MutationObserver(initializeSidebar);
     observer.observe(document.documentElement, { childList: true, subtree: true });
 })();
+
+// Home overview: keep the Today Energy card live even when the VCB virtual tag
+// is missing or delayed. Vinoba in particular reliably publishes each inverter's
+// daily generation, so use that as a live fallback and the report API as backup.
+(function () {
+    function startHomeTodayEnergyFix() {
+        const energyEl = document.getElementById('vcb_etoday');
+        if (!energyEl || energyEl.dataset.liveEnergyFix === '1') return;
+        energyEl.dataset.liveEnergyFix = '1';
+
+        const params = new URLSearchParams(window.location.search);
+        const plant = params.get('plant') || 'vinoba-velliyanai';
+        const token = params.get('token') || sessionStorage.getItem('vs_token') || localStorage.getItem('vs_token') || '';
+        const inverterDaily = {};
+        let vcbToday = null;
+        let apiToday = 0;
+        let lastLiveAt = 0;
+        let energySocket = null;
+        let reconnectTimer = null;
+
+        function indiaDate() {
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
+            }).formatToParts(new Date());
+            const p = {};
+            parts.forEach(x => { if (x.type !== 'literal') p[x.type] = x.value; });
+            return `${p.year}-${p.month}-${p.day}`;
+        }
+
+        function liveInverterTotal() {
+            return Object.values(inverterDaily).reduce((sum, value) => sum + (Number(value) || 0), 0);
+        }
+
+        function bestEnergy() {
+            const inverterTotal = liveInverterTotal();
+            if (vcbToday !== null && Number.isFinite(vcbToday) && vcbToday > 0) return vcbToday;
+            if (inverterTotal > 0) return inverterTotal;
+            return apiToday > 0 ? apiToday : 0;
+        }
+
+        function paintEnergy() {
+            const value = bestEnergy();
+            energyEl.innerHTML = value.toFixed(2) + ' <span class="text-sm font-bold text-purple-600">kWh</span>';
+        }
+
+        function readVirtualToday(data) {
+            const tags = data && data.virtualTags;
+            if (!tags || typeof tags !== 'object') return null;
+            const candidateKeys = ['vcb-today', 'vcb_today', 'today-energy', 'today_energy', 'today'];
+            for (const key of candidateKeys) {
+                if (tags[key] === undefined) continue;
+                const raw = tags[key] && typeof tags[key] === 'object' ? tags[key].value : tags[key];
+                const n = Number(raw);
+                if (Number.isFinite(n)) return n;
+            }
+            for (const [key, rawValue] of Object.entries(tags)) {
+                if (!/vcb.*today|today.*energy|energy.*today/i.test(key)) continue;
+                const raw = rawValue && typeof rawValue === 'object' ? rawValue.value : rawValue;
+                const n = Number(raw);
+                if (Number.isFinite(n)) return n;
+            }
+            return null;
+        }
+
+        function handleLive(data) {
+            if (!data || data.unit_id !== plant) return;
+            const virtualToday = readVirtualToday(data);
+            if (virtualToday !== null) {
+                vcbToday = virtualToday;
+                lastLiveAt = Date.now();
+            }
+
+            const values = data.values || {};
+            const task = String(data.task || '').toLowerCase();
+            const device = String(data.device || '');
+            const isInverter = task === 'inverter' || device.toLowerCase().includes('inverter');
+            if (isInverter) {
+                for (const [key, raw] of Object.entries(values)) {
+                    if (!/daily.*generation|daily.*gen/i.test(key)) continue;
+                    const n = Number(raw);
+                    if (Number.isFinite(n)) {
+                        inverterDaily[device || 'Unknown Inverter'] = n;
+                        lastLiveAt = Date.now();
+                        break;
+                    }
+                }
+            }
+            paintEnergy();
+        }
+
+        function connectEnergySocket() {
+            if (energySocket && (energySocket.readyState === WebSocket.OPEN || energySocket.readyState === WebSocket.CONNECTING)) return;
+            try {
+                energySocket = new WebSocket('wss://vinobasolar.scadahub.in:5001');
+                energySocket.onopen = function () {
+                    energySocket.send(JSON.stringify({ type: 'subscribe', unit_id: plant }));
+                };
+                energySocket.onmessage = function (event) {
+                    try { handleLive(JSON.parse(event.data)); } catch (_) {}
+                };
+                energySocket.onclose = function () {
+                    energySocket = null;
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = setTimeout(connectEnergySocket, 5000);
+                };
+                energySocket.onerror = function () {};
+            } catch (_) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = setTimeout(connectEnergySocket, 5000);
+            }
+        }
+
+        async function fetchEnergyFallback() {
+            try {
+                const q = new URLSearchParams({ tab: 'inv_vcb', type: 'daily', date: indiaDate(), plant: plant });
+                if (token) q.set('token', token);
+                const res = await fetch('api_reports.php?' + q.toString(), {
+                    cache: 'no-store',
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                });
+                const json = await res.json();
+                if (!json.success || !Array.isArray(json.data)) return;
+                let best = 0;
+                json.data.forEach(row => {
+                    const total = Number(row.inv_total_kwh || 0);
+                    if (total > best) best = total;
+                });
+                apiToday = best;
+                // Do not replace fresh telemetry with a database value; only fill gaps.
+                if (Date.now() - lastLiveAt > 15000) paintEnergy();
+            } catch (_) {}
+        }
+
+        // home.php's original updateDash() can repaint this card with a stale zero.
+        // Wrap it so the live/fallback energy is restored immediately afterward.
+        if (typeof window.updateDash === 'function' && !window.updateDash.__todayEnergyWrapped) {
+            const originalUpdateDash = window.updateDash;
+            const wrapped = function () {
+                const result = originalUpdateDash.apply(this, arguments);
+                paintEnergy();
+                return result;
+            };
+            wrapped.__todayEnergyWrapped = true;
+            window.updateDash = wrapped;
+        }
+
+        connectEnergySocket();
+        fetchEnergyFallback();
+        setInterval(fetchEnergyFallback, 10000);
+        setInterval(paintEnergy, 1000);
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startHomeTodayEnergyFix);
+    else startHomeTodayEnergyFix();
+})();
