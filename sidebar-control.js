@@ -121,12 +121,6 @@
 
         const profileName = document.getElementById('profileName');
         if (profileName) profileName.textContent = info.name;
-        const profileService = document.getElementById('profileServiceNumber');
-        if (profileService) profileService.textContent = 'Service No. ' + info.service;
-        const profileCapacity = document.getElementById('profileCapacity');
-        if (profileCapacity) profileCapacity.innerHTML = info.capacity + ' <span class="text-sm font-bold">MW</span>';
-        const profileLocation = document.getElementById('profileLocation');
-        if (profileLocation) profileLocation.textContent = info.location;
         const sldName = document.getElementById('sld_plant_name');
         if (sldName) sldName.textContent = info.name;
     }
