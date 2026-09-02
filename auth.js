@@ -1,30 +1,27 @@
 (function() {
-    const aliases = {
-        'vinoba-velliyanai': 'vinoba-1',
-        'vinoba': 'vinoba-1',
-        'makkalpower': 'ssv',
-        'makkal-power': 'ssv',
-        'anushyam': 'ssv'
-    };
-    const normalize = value => {
-        const id = String(value || '').trim().toLowerCase();
-        return aliases[id] || id;
-    };
+    const validPlants = new Set(['vinoba-1', 'ssv']);
+    const normalize = value => String(value || '').trim().toLowerCase();
     const token = localStorage.getItem('vs_token') || sessionStorage.getItem('vs_token');
     const rawUser = localStorage.getItem('vs_user') || sessionStorage.getItem('vs_user');
     if (!token || !rawUser) { window.location.replace('index.php'); return; }
+
     let user;
-    try { user = JSON.parse(rawUser); } catch (_) { window.location.replace('index.php'); return; }
-    if (user.plant_id) {
-        const canonical = normalize(user.plant_id);
-        if (canonical !== user.plant_id) {
-            user.plant_id = canonical;
-            localStorage.setItem('vs_user', JSON.stringify(user));
-            sessionStorage.setItem('vs_user', JSON.stringify(user));
+    try { user = JSON.parse(rawUser); }
+    catch (_) { window.location.replace('index.php'); return; }
+
+    if (user.role !== 'admin') {
+        const assigned = normalize(user.plant_id);
+        if (!validPlants.has(assigned)) {
+            window.location.replace('index.php');
+            return;
         }
-    }
-    const current = normalize(new URLSearchParams(location.search).get('plant') || '');
-    if (user.role !== 'admin' && user.plant_id && current && current !== user.plant_id) {
-        window.location.replace('home.php?plant=' + encodeURIComponent(user.plant_id) + '&token=' + encodeURIComponent(token));
+        user.plant_id = assigned;
+        localStorage.setItem('vs_user', JSON.stringify(user));
+        sessionStorage.setItem('vs_user', JSON.stringify(user));
+
+        const current = normalize(new URLSearchParams(location.search).get('plant') || '');
+        if (current && current !== assigned) {
+            window.location.replace('home.php?plant=' + encodeURIComponent(assigned) + '&token=' + encodeURIComponent(token));
+        }
     }
 })();
