@@ -6,14 +6,16 @@
     <title>Solar Plants Sign In</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="dashboard-ui.css?v=1" data-dashboard-ui>
+    <script src="dashboard-ui.js?v=1" defer data-dashboard-ui></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 px-4">
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 px-4 py-6 sm:py-10">
 
-    <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm">
+    <div class="bg-white p-5 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm">
         <div class="text-center mb-6">
             <div class="w-12 h-12 bg-blue-600 text-white rounded-xl mx-auto flex items-center justify-center text-xl shadow-lg mb-3">
                 <i class="fa-solid fa-solar-panel"></i>
@@ -22,19 +24,19 @@
             <p class="text-xs text-slate-500 mt-1">Sign in to Solar Dashboard</p>
         </div>
         
-        <form id="loginForm" class="space-y-4">
+        <form id="loginForm" class="space-y-4" autocomplete="on">
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
-                <input type="email" id="email" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                <label for="email" class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+                <input type="email" id="email" autocomplete="username" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
             </div>
             <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
-                <input type="password" id="password" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                <label for="password" class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                <input type="password" id="password" autocomplete="current-password" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
             </div>
             <button type="submit" class="w-full py-2.5 px-4 text-sm text-white font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 transition-all mt-4">
                 Sign In
             </button>
-            <p id="login-error" class="text-red-500 text-xs text-center hidden font-medium mt-2"></p>
+            <p id="login-error" class="text-red-500 text-xs text-center hidden font-medium mt-2" role="alert" aria-live="polite"></p>
         </form>
     </div>
 
@@ -42,8 +44,11 @@
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
+            const err = document.getElementById('login-error');
+            err.classList.add('hidden');
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Verifying...`;
             btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
 
             try {
                 const res = await fetch('api.php?action=login', {
@@ -66,15 +71,17 @@
                         window.location.href = 'home.php?token=' + encodeURIComponent(data.token);
                     }
                 } else {
-                    const err = document.getElementById('login-error');
                     err.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1"></i> ${data.message}`;
                     err.classList.remove('hidden');
                 }
             } catch (error) {
                 console.error('Login Error:', error);
+                err.textContent = 'Unable to sign in. Please try again.';
+                err.classList.remove('hidden');
             } finally {
                 btn.innerHTML = `Sign In`;
                 btn.disabled = false;
+                btn.removeAttribute('aria-busy');
             }
         });
     </script>
