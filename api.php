@@ -37,6 +37,10 @@ function userByToken(mysqli $conn, string $token): ?array {
     return $u;
 }
 
+if (!isset($conn) || !($conn instanceof mysqli)) {
+    sendJson(503, ['status'=>'error','message'=>'Database is not configured on this server.']);
+}
+
 try {
     $conn->set_charset('utf8mb4');
     $action=(string)($_GET['action']??''); $data=requestData();
