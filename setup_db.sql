@@ -33,11 +33,11 @@ CREATE TABLE `users` (
 
 -- Seed logins. Passwords are stored as bcrypt hashes; users sign in with the
 -- documented credentials below.
--- Admin: admin@scada.com / existing admin password
+-- Admin: admin@scada.com / admin@123
 -- Vinoba user: vinobarenew@scada.com / vinoba@123
 -- SSV user: ssvgreen@scada.com / ssv@123
 INSERT INTO `users` (`email`,`password`,`role`,`plant_id`) VALUES
-('admin@scada.com','$2y$10$yp5n8uCZkpcJLTsUmGHBKutfKB83.HuJk8H2TSaHj2GFYUs1xZA.y','admin',''),
+('admin@scada.com','$2y$12$xzaJx29CQd2cz6xWFtZ.NuDHyk68Hhc77eYux4mxCKMWkCy4TD9Ke','admin',''),
 ('vinobarenew@scada.com','$2y$12$V1jKdI8V8pJgDw67V/Kgo.x2NwB7xrx2a/8NXI1HWqpefjTRyClVC','user','vinoba-1'),
 ('ssvgreen@scada.com','$2y$12$nbEf4Q7/A75Cce/AT3W04.A9ttS6OGixElhC7AMGZK4D438LFBY5W','user','ssv');
 
