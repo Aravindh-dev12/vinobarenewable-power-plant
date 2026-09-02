@@ -4,6 +4,7 @@ require_once __DIR__ . '/plant_config.php';
 
 $token = isset($_GET['token']) ? trim((string)$_GET['token']) : '';
 $user = null;
+
 if ($token !== '') {
     $stmt = $conn->prepare('SELECT * FROM users WHERE auth_token = ? LIMIT 1');
     if ($stmt) {
@@ -21,34 +22,44 @@ if (!$user) {
 }
 
 migrate_user_plant_alias($conn, $user);
-$currentPage = basename($_SERVER['PHP_SELF'] ?? 'home.php');
-$rawPlant = isset($_GET['plant']) ? trim((string)$_GET['plant']) : '';
-$currentPlant = $rawPlant === 'all' ? 'all' : normalize_plant_id($rawPlant);
 
-if ($rawPlant !== '' && $rawPlant !== 'all' && $currentPlant !== $rawPlant && is_valid_plant_id($currentPlant)) {
-    $query = $_GET;
-    $query['plant'] = $currentPlant;
-    header('Location: ' . $currentPage . '?' . http_build_query($query));
-    exit;
+$currentPage = basename($_SERVER['PHP_SELF'] ?? 'home.php');
+$isAdmin = (($user['role'] ?? 'user') === 'admin');
+$allowAllPlants = $isAdmin && $currentPage === 'reports.php';
+$rawPlant = isset($_GET['plant']) ? trim((string)$_GET['plant']) : '';
+
+if ($rawPlant === 'all' && $allowAllPlants) {
+    $currentPlant = 'all';
+} else {
+    $currentPlant = normalize_plant_id($rawPlant);
+    if ($currentPlant !== '' && !is_valid_plant_id($currentPlant)) {
+        $currentPlant = '';
+    }
 }
 
-if (($user['role'] ?? 'user') !== 'admin') {
+if (!$isAdmin) {
     $assigned = normalize_plant_id($user['plant_id'] ?? '');
     if (!is_valid_plant_id($assigned)) $assigned = 'vinoba-1';
     $user['plant_id'] = $assigned;
 
-    if ($currentPlant === '' || $currentPlant === 'all') {
+    if ($currentPlant !== $assigned) {
         $query = $_GET;
         $query['plant'] = $assigned;
         header('Location: ' . $currentPage . '?' . http_build_query($query));
         exit;
     }
-    if ($currentPlant !== $assigned) {
-        header('Location: home.php?plant=' . urlencode($assigned) . '&token=' . urlencode($token));
+} else {
+    // Admin dashboard itself represents both plants and does not need a plant query.
+    if ($currentPage !== 'admin.php' && $currentPlant === '') {
+        $query = $_GET;
+        $query['plant'] = 'vinoba-1';
+        header('Location: ' . $currentPage . '?' . http_build_query($query));
         exit;
     }
-} else {
-    if ($currentPlant === '' && $currentPage !== 'admin.php') {
+
+    // "all" is only valid for the Reports screen. Every live plant page must use
+    // exactly one canonical SCADA unit id: vinoba-1 or ssv.
+    if ($currentPlant === 'all' && !$allowAllPlants) {
         $query = $_GET;
         $query['plant'] = 'vinoba-1';
         header('Location: ' . $currentPage . '?' . http_build_query($query));
