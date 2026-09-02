@@ -228,6 +228,16 @@ main .grid > * { min-width: 0; }
     .overflow-x-auto table { min-width: 600px; }
 }
 
+@media (min-width: 768px) {
+    /* sidebar.html is injected dynamically. Do not rely on Tailwind CDN to
+       generate md:translate-x-0 after the initial page scan. */
+    #sidebar {
+        transform: translateX(0) !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+}
+
 @media (min-width: 1280px) {
     .ui-page,
     main > div[class*="p-4"],
