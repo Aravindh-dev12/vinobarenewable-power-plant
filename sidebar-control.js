@@ -1,4 +1,12 @@
 (function () {
+    if (!document.querySelector('script[data-dashboard-ui]')) {
+        const ui = document.createElement('script');
+        ui.src = 'dashboard-ui.js?v=1';
+        ui.defer = true;
+        ui.dataset.dashboardUi = '1';
+        document.head.appendChild(ui);
+    }
+
     const PLANTS = {
         'vinoba-1': { name: 'Vinoba Renewable Energy Private Limited', service: '06914430133' },
         'ssv': { name: 'SSV Green Power Private Limited', service: '06914430134' }
@@ -85,6 +93,7 @@
                 link.style.paddingRight = collapsed ? '0.5rem' : '';
             });
             if (icon) icon.className = collapsed ? 'fa-solid fa-angles-right' : 'fa-solid fa-angles-left';
+            if (toggle) toggle.setAttribute('aria-label', collapsed ? 'Expand navigation' : 'Collapse navigation');
         }
 
         if (toggle) toggle.addEventListener('click', () => {
@@ -92,7 +101,7 @@
             localStorage.setItem(STORAGE_KEY, collapsed ? '0' : '1');
             applyLayout();
         });
-        addEventListener('resize', applyLayout);
+        addEventListener('resize', applyLayout, { passive: true });
         applyLayout();
     }
 
