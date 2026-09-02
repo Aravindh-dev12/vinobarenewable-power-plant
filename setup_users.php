@@ -1,12 +1,25 @@
 <?php
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/plant_config.php';
-header('Content-Type: text/plain; charset=utf-8');
 
-if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
-    http_response_code(500);
-    exit("Database connection failed.\n");
+if (!isset($conn) || !($conn instanceof mysqli)) {
+    fwrite(STDERR, "Database connection failed. Configure config.local.php or SCADA_DB_* environment variables first.\n");
+    exit(1);
 }
+
+$conn->query("CREATE TABLE IF NOT EXISTS plants (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    service_number VARCHAR(100) NOT NULL,
+    capacity DECIMAL(10,2) NOT NULL DEFAULT 0,
+    location VARCHAR(255) DEFAULT '',
+    theme VARCHAR(50) DEFAULT 'emerald'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
 $conn->query("CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -31,19 +44,17 @@ $catalog = plant_catalog();
 $plantStmt = $conn->prepare("INSERT INTO plants (id,name,service_number,capacity,location,theme)
     VALUES (?,?,?,?,?,?)
     ON DUPLICATE KEY UPDATE name=VALUES(name),service_number=VALUES(service_number),capacity=VALUES(capacity),location=VALUES(location),theme=VALUES(theme)");
-if ($plantStmt) {
-    foreach ($catalog as $p) {
-        $id = $p['id'];
-        $name = $p['name'];
-        $service = $p['service_number'];
-        $capacity = (float)$p['capacity'];
-        $location = $p['location'];
-        $theme = $id === 'vinoba-1' ? 'violet' : 'emerald';
-        $plantStmt->bind_param('sssdss', $id, $name, $service, $capacity, $location, $theme);
-        $plantStmt->execute();
-    }
-    $plantStmt->close();
+foreach ($catalog as $p) {
+    $id = $p['id'];
+    $name = $p['name'];
+    $service = $p['service_number'];
+    $capacity = (float)$p['capacity'];
+    $location = $p['location'];
+    $theme = $id === 'vinoba-1' ? 'violet' : 'emerald';
+    $plantStmt->bind_param('sssdss', $id, $name, $service, $capacity, $location, $theme);
+    $plantStmt->execute();
 }
+$plantStmt->close();
 
 $users = [
     ['admin@scada.com', 'admin@123', 'admin', ''],
@@ -57,7 +68,6 @@ $insert = $conn->prepare('INSERT INTO users (email,password,role,plant_id) VALUE
 
 foreach ($users as [$email, $plainPassword, $role, $plantId]) {
     $hash = password_hash($plainPassword, PASSWORD_DEFAULT);
-
     $find->bind_param('s', $email);
     $find->execute();
     $find->store_result();
@@ -84,8 +94,7 @@ $find->close();
 $update->close();
 $insert->close();
 
-echo "\nLogin users are ready in shared database.\n";
+echo "\nLogin users are ready in shared database: {$dbname}\n";
 echo "Admin:  admin@scada.com / admin@123\n";
 echo "Vinoba: vinobarenew@scada.com / vinoba@123\n";
 echo "SSV:    ssvgreen@scada.com / ssv@123\n";
-?>
