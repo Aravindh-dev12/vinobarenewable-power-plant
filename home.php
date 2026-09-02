@@ -8,194 +8,106 @@ $plantInfo = plant_info($currentPlantId) ?? plant_catalog()['vinoba-1'];
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title><?php echo htmlspecialchars($plantInfo['name']); ?> - Live Dashboard</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="sidebar-control.js?v=7" defer></script>
-<style>
-:root{--surface:#fff;--line:#e2e8f0;--muted:#64748b;--ink:#0f172a;--green:#059669;--blue:#2563eb;--purple:#7c3aed;--amber:#d97706}
-body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8fafc;color:var(--ink)}
-.dashboard-shell{max-width:1560px;margin:0 auto;width:100%}
-.surface{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 1px 2px rgba(15,23,42,.03)}
-.kpi-card{position:relative;overflow:hidden;min-height:150px}
-.kpi-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center}
-.metric-value{font-variant-numeric:tabular-nums;letter-spacing:-.03em}
-.status-dot{width:8px;height:8px;border-radius:999px;display:inline-block}
-.section-title{font-size:.75rem;line-height:1rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#475569}
-.mini-label{font-size:.625rem;line-height:.875rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8}
-.live-ring{box-shadow:0 0 0 4px rgba(16,185,129,.10)}
-@media(max-width:767px){.surface{border-radius:14px}.dashboard-shell{padding-left:0!important;padding-right:0!important}}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle"><?php echo htmlspecialchars($plantInfo['name']); ?> - Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar-control.js?v=8" defer></script>
+    <style>
+        ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:#f8fafc}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+    </style>
 </head>
-<body>
+<?php if (!empty($dbError)) { echo '<div style="background:#fee2e2;color:#991b1b;padding:12px;text-align:center;font-weight:bold;font-family:sans-serif;">'.htmlspecialchars($dbError).'</div>'; } ?>
+<body class="h-full bg-slate-50 text-slate-800 font-sans">
 <div class="min-h-screen flex relative">
-<div id="overlay" class="fixed inset-0 bg-slate-900/40 hidden z-30 md:hidden"></div>
-<div id="sidebar-container"></div>
-
-<main class="flex-1 flex flex-col w-full md:ml-64 overflow-x-hidden min-w-0">
-<header class="bg-white/95 backdrop-blur px-4 sm:px-6 py-3 sticky top-0 z-20 border-b border-slate-200">
-    <div class="dashboard-shell flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3 min-w-0">
-            <button id="menuBtn" class="md:hidden w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-700 shrink-0" aria-label="Open navigation"><i class="fa-solid fa-bars"></i></button>
-            <div class="min-w-0">
-                <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em] text-emerald-700">
-                    <span>Solar SCADA</span><span class="text-slate-300">/</span><span class="text-slate-500">Live dashboard</span>
-                </div>
-                <h1 class="text-lg sm:text-xl font-black text-slate-900 truncate mt-0.5">Plant Operations</h1>
-            </div>
-        </div>
-        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div id="connectionBadge" class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50">
-                <span id="refreshPulse" class="status-dot bg-slate-400"></span>
-                <div class="leading-tight"><p id="headerLiveText" class="text-[10px] font-black uppercase tracking-wider text-slate-500">Connecting</p><p id="lastUpdateText" class="text-[9px] font-semibold text-slate-400">Waiting for telemetry</p></div>
-            </div>
-            <div class="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-700 tabular-nums"><i class="fa-regular fa-clock mr-1.5 text-slate-400"></i><span id="clockDisplay">--:--:--</span></div>
-        </div>
-    </div>
-</header>
-
-<div class="dashboard-shell p-4 sm:p-6 space-y-5">
-    <section class="surface p-5 sm:p-6">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-            <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2 mb-2">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-wider"><span class="status-dot bg-emerald-500"></span>SCADA Plant</span>
-                    <span id="sourceBadge" class="inline-flex px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider">Connecting</span>
-                </div>
-                <h2 id="profileName" class="text-xl sm:text-2xl font-black text-slate-950 leading-tight"><?php echo htmlspecialchars($plantInfo['name']); ?></h2>
-                <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-sm text-slate-500">
-                    <span id="profileServiceNumber" class="font-bold"><i class="fa-solid fa-bolt mr-1.5 text-emerald-600"></i>Service No. <?php echo htmlspecialchars($plantInfo['service_number']); ?></span>
-                    <span id="profileLocation" class="font-semibold"><i class="fa-solid fa-location-dot mr-1.5 text-slate-400"></i><?php echo htmlspecialchars($plantInfo['location']); ?></span>
-                    <span id="profileCapacity" class="font-black text-slate-700"><i class="fa-solid fa-solar-panel mr-1.5 text-slate-400"></i><?php echo htmlspecialchars((string)$plantInfo['capacity']); ?> MW</span>
+    <div id="overlay" class="fixed inset-0 bg-slate-900 bg-opacity-40 hidden z-30 md:hidden transition-opacity"></div>
+    <div id="sidebar-container"></div>
+    <main class="flex-1 flex flex-col w-full md:ml-64 overflow-x-hidden">
+        <header class="bg-white p-4 sm:px-6 flex justify-between items-center sticky top-0 z-20 border-b border-slate-200 shadow-sm">
+            <div class="flex items-center gap-3">
+                <button id="menuBtn" class="md:hidden text-emerald-600 text-2xl focus:outline-none">&#9776;</button>
+                <div>
+                    <h2 class="text-xl font-black text-slate-800 tracking-tight">Live Plant Telemetry</h2>
+                    <p class="text-xs text-slate-500 hidden sm:block">Real-time SCADA monitoring</p>
                 </div>
             </div>
-            <div class="grid grid-cols-2 sm:flex gap-3 lg:shrink-0">
-                <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 min-w-[120px]"><p class="mini-label">Plant ID</p><p class="text-sm font-black text-slate-800 mt-1"><?php echo htmlspecialchars($currentPlantId); ?></p></div>
-                <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 min-w-[120px]"><p class="mini-label">Data mode</p><p id="dataModeText" class="text-sm font-black text-slate-800 mt-1">Connecting</p></div>
+            <div class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                <div id="refreshPulse" class="w-2.5 h-2.5 bg-slate-400 rounded-full"></div>
+                <span id="liveText" class="text-[10px] font-bold text-slate-500 hidden sm:inline">CONNECTING</span>
+                <span class="text-xs font-bold text-slate-600 tracking-widest hidden sm:inline border-l border-slate-200 pl-3" id="clockDisplay">--:--:--</span>
             </div>
-        </div>
-    </section>
+        </header>
 
-    <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div class="surface kpi-card p-5">
-            <div class="flex items-start justify-between"><div class="kpi-icon bg-blue-50 text-blue-600"><i class="fa-solid fa-bolt-lightning"></i></div><span id="powerLivePill" class="text-[9px] font-black px-2 py-1 rounded-full bg-slate-100 text-slate-500">WAITING</span></div>
-            <p class="mini-label mt-5">Active Power</p>
-            <p id="vcb_active" class="metric-value text-3xl font-black text-slate-950 mt-1">-- <span class="text-sm font-bold text-blue-600">kW</span></p>
-            <div class="flex items-center justify-between gap-3 mt-3"><p id="powerSource" class="text-[11px] text-slate-500 font-semibold">Waiting for live power</p><p class="text-[11px] text-slate-400 whitespace-nowrap">Peak <span id="vcb_peak" class="font-black text-slate-600">--</span></p></div>
-        </div>
-
-        <div class="surface kpi-card p-5">
-            <div class="flex items-start justify-between"><div class="kpi-icon bg-purple-50 text-purple-600"><i class="fa-solid fa-chart-area"></i></div><span class="text-[9px] font-black px-2 py-1 rounded-full bg-purple-50 text-purple-700">TODAY</span></div>
-            <p class="mini-label mt-5">Energy Generated</p>
-            <p id="vcb_etoday" class="metric-value text-3xl font-black text-slate-950 mt-1">-- <span class="text-sm font-bold text-purple-600">kWh</span></p>
-            <p id="energySource" class="text-[11px] text-slate-500 font-semibold mt-3">Waiting for live inverter data</p>
-        </div>
-
-        <div class="surface kpi-card p-5">
-            <div class="flex items-start justify-between"><div class="kpi-icon bg-emerald-50 text-emerald-600"><i class="fa-solid fa-server"></i></div><span id="inverterHealthPill" class="text-[9px] font-black px-2 py-1 rounded-full bg-slate-100 text-slate-500">WAITING</span></div>
-            <p class="mini-label mt-5">Inverter Fleet</p>
-            <p class="metric-value text-3xl font-black text-slate-950 mt-1"><span id="inverterCount">0</span> <span class="text-sm font-bold text-emerald-600">units</span></p>
-            <p class="text-[11px] text-slate-500 font-semibold mt-3"><span id="stringHealth">--</span> active strings</p>
-        </div>
-
-        <div class="surface kpi-card p-5">
-            <div class="flex items-start justify-between"><div class="kpi-icon bg-amber-50 text-amber-600"><i class="fa-solid fa-sun"></i></div><span class="text-[9px] font-black px-2 py-1 rounded-full bg-amber-50 text-amber-700">WEATHER</span></div>
-            <p class="mini-label mt-5">Solar Conditions</p>
-            <p class="metric-value text-3xl font-black text-slate-950 mt-1"><span id="wmos_rad">--</span> <span class="text-sm font-bold text-amber-600">W/m²</span></p>
-            <div class="flex gap-4 mt-3 text-[11px] text-slate-500 font-semibold"><span><i class="fa-solid fa-temperature-half mr-1 text-slate-400"></i><span id="wmos_ptemp">--</span> °C</span><span><i class="fa-solid fa-wind mr-1 text-slate-400"></i><span id="wmos_wind">--</span> m/s</span></div>
-        </div>
-    </section>
-
-    <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div class="surface p-5 sm:p-6 xl:col-span-2 min-h-[390px]">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
-                <div><p class="section-title">Generation Curve</p><p class="text-sm text-slate-500 mt-1">Today · live WebSocket with historical backfill</p></div>
-                <div class="flex items-center gap-2"><span class="status-dot bg-blue-500"></span><span class="text-[10px] font-bold text-slate-500">Plant output (kW)</span></div>
+        <div class="p-4 sm:p-6 w-full flex flex-col gap-6 max-w-[1600px] mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-50 rounded-full blur-xl -z-10"></div>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Plant Profile</h3>
+                    <p id="profileName" class="font-black text-slate-800 text-lg leading-snug"><?php echo htmlspecialchars($plantInfo['name']); ?></p>
+                    <p class="text-[11px] font-bold text-emerald-700 mt-1"><i class="fa-solid fa-bolt mr-1"></i>Service No. <?php echo htmlspecialchars($plantInfo['service_number']); ?></p>
+                    <div class="flex items-baseline gap-2 mt-2">
+                        <p id="profileCapacity" class="font-black text-emerald-600 text-2xl"><?php echo htmlspecialchars((string)$plantInfo['capacity']); ?> <span class="text-sm font-bold">MW</span></p>
+                        <p id="profileLocation" class="text-xs text-slate-500 font-medium border-l border-slate-200 pl-2"><?php echo htmlspecialchars($plantInfo['location']); ?></p>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-50 rounded-full blur-xl -z-10"></div>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Today Energy</h3>
+                    <p class="font-black text-slate-800 text-3xl" id="vcb_etoday">-- <span class="text-sm font-bold text-purple-600">kWh</span></p>
+                    <p id="energySource" class="text-xs text-slate-500 font-medium mt-1">Waiting for telemetry</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-50 rounded-full blur-xl -z-10"></div>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Live Active Power</h3>
+                    <p class="font-black text-slate-800 text-3xl" id="vcb_active">-- <span class="text-sm font-bold text-blue-600">kW</span></p>
+                    <p class="text-xs text-slate-500 font-medium mt-1">Peak Today: <span id="vcb_peak" class="text-slate-700 font-bold">--</span> kW</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-center relative overflow-hidden">
+                    <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-orange-50 rounded-full blur-xl -z-10"></div>
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-2 mb-2"><span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Radiation</span><span class="font-bold text-orange-500"><span id="wmos_rad">--</span> <span class="text-[10px]">W/m²</span></span></div>
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-2 mb-2"><span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Panel Temp</span><span class="font-bold text-red-500"><span id="wmos_ptemp">--</span> <span class="text-[10px]">°C</span></span></div>
+                    <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Wind Speed</span><span class="font-bold text-sky-500"><span id="wmos_wind">--</span> <span class="text-[10px]">m/s</span></span></div>
+                </div>
             </div>
-            <div class="relative w-full" style="height:310px"><canvas id="powerChart"></canvas></div>
-        </div>
 
-        <div class="surface p-5 sm:p-6">
-            <div class="flex items-start justify-between gap-3 mb-5"><div><p class="section-title">Generation Window</p><p class="text-xs text-slate-500 mt-1">First and latest active time today</p></div><span id="htAvailability" class="text-[9px] font-black rounded-full bg-slate-100 text-slate-500 px-2.5 py-1.5 whitespace-nowrap">HT OPTIONAL</span></div>
-            <div class="space-y-3">
-                <div class="rounded-xl border border-slate-200 p-4"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-server text-xs"></i></span><div><p class="text-xs font-black text-slate-800">Inverters</p><p id="inverterWindowState" class="text-[9px] font-black text-slate-400 mt-0.5">WAITING</p></div></div><div class="text-right"><p class="mini-label">Start → Latest</p><p class="font-black text-slate-800 tabular-nums mt-1"><span id="inverter_start_time">--:--</span> <span class="text-slate-300 mx-1">→</span> <span id="inverter_end_time">--:--</span></p></div></div></div>
-                <div class="rounded-xl border border-slate-200 p-4"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center"><i class="fa-solid fa-bolt text-xs"></i></span><div><p class="text-xs font-black text-slate-800">HT / VCB</p><p id="vcbWindowState" class="text-[9px] font-black text-slate-400 mt-0.5">WAITING</p></div></div><div class="text-right"><p class="mini-label">Start → Latest</p><p class="font-black text-slate-800 tabular-nums mt-1"><span id="vcb_start_time">--:--</span> <span class="text-slate-300 mx-1">→</span> <span id="vcb_end_time">--:--</span></p></div></div></div>
-                <div class="rounded-xl border border-slate-200 p-4"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center"><i class="fa-solid fa-temperature-half text-xs"></i></span><div><p class="text-xs font-black text-slate-800">Transformer</p><p id="transformerWindowState" class="text-[9px] font-black text-slate-400 mt-0.5">WAITING</p></div></div><div class="text-right"><p class="mini-label">Start → Latest</p><p class="font-black text-slate-800 tabular-nums mt-1"><span id="transformer_start_time">--:--</span> <span class="text-slate-300 mx-1">→</span> <span id="transformer_end_time">--:--</span></p></div></div></div>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                    <h3 class="text-sm font-black text-slate-600 uppercase tracking-widest"><i class="fa-regular fa-clock text-emerald-500 mr-2"></i>Generation Start &amp; End Time</h3>
+                    <span id="windowSource" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Waiting</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="rounded-xl border border-blue-100 bg-blue-50/40 p-4"><div class="flex items-center justify-between mb-3"><p class="text-xs font-black text-blue-700 uppercase tracking-wider">Combined Inverters</p><span id="inverter_time_status" class="text-[10px] font-bold rounded-full bg-slate-100 text-slate-500 px-2 py-1">WAITING</span></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[10px] font-bold text-slate-400 uppercase">Start Time</p><p id="inverter_start_time" class="text-xl font-black text-slate-800 mt-1">--:--</p></div><div><p class="text-[10px] font-bold text-slate-400 uppercase">End / Latest</p><p id="inverter_end_time" class="text-xl font-black text-slate-800 mt-1">--:--</p></div></div></div>
+                    <div class="rounded-xl border border-purple-100 bg-purple-50/40 p-4"><div class="flex items-center justify-between mb-3"><p class="text-xs font-black text-purple-700 uppercase tracking-wider">HT Panel (VCB)</p><span id="vcb_time_status" class="text-[10px] font-bold rounded-full bg-slate-100 text-slate-500 px-2 py-1">WAITING</span></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[10px] font-bold text-slate-400 uppercase">Start Time</p><p id="vcb_start_time" class="text-xl font-black text-slate-800 mt-1">--:--</p></div><div><p class="text-[10px] font-bold text-slate-400 uppercase">End / Latest</p><p id="vcb_end_time" class="text-xl font-black text-slate-800 mt-1">--:--</p></div></div></div>
+                    <div class="rounded-xl border border-orange-100 bg-orange-50/40 p-4"><div class="flex items-center justify-between mb-3"><p class="text-xs font-black text-orange-700 uppercase tracking-wider">Transformer</p><span id="transformer_time_status" class="text-[10px] font-bold rounded-full bg-slate-100 text-slate-500 px-2 py-1">WAITING</span></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[10px] font-bold text-slate-400 uppercase">Start Time</p><p id="transformer_start_time" class="text-xl font-black text-slate-800 mt-1">--:--</p></div><div><p class="text-[10px] font-bold text-slate-400 uppercase">End / Latest</p><p id="transformer_end_time" class="text-xl font-black text-slate-800 mt-1">--:--</p></div></div></div>
+                </div>
             </div>
-        </div>
-    </section>
 
-    <section class="surface p-5 sm:p-6">
-        <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
-            <div><p class="section-title">Inverter Fleet</p><p class="text-sm text-slate-500 mt-1">Live output, daily generation and string availability</p></div>
-            <span id="liveStatus" class="inline-flex items-center gap-2 text-[10px] font-black text-slate-500 bg-slate-100 rounded-full px-3 py-1.5"><span class="status-dot bg-slate-400"></span>CONNECTING</span>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col h-[400px]"><div class="flex items-center justify-between gap-3 mb-4 shrink-0"><h3 class="text-sm font-black text-slate-600 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-chart-line text-blue-500"></i>Generation Curve (Today)</h3><span id="chartSource" class="text-[10px] font-bold text-slate-400">SCADA / DB</span></div><div class="relative w-full" style="height:320px;"><canvas id="powerChart"></canvas></div></div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5"><div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-5"><h3 class="text-sm font-black text-slate-600 uppercase tracking-widest">Inverter Field Array <span class="text-[10px] lowercase text-slate-400 font-medium ml-1">(Active Strings &amp; Power)</span></h3><span id="inverterCount" class="text-[10px] font-bold text-slate-500">0 inverters</span></div><div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="inv_grid"><div class="text-sm text-slate-400 italic text-center py-8 col-span-full">Waiting for telemetry data...</div></div></div>
         </div>
-        <div id="inv_grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"><div class="col-span-full rounded-xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-sm font-semibold text-slate-400">Waiting for live inverter telemetry…</div></div>
-    </section>
+    </main>
 </div>
-</main>
-</div>
+
+<div id="stringModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden z-50 flex items-center justify-center p-4"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"><div class="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50"><h3 class="text-lg font-black text-slate-800" id="stringModalTitle">String Details</h3><button onclick="closeStringModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5 overflow-y-auto"><div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3" id="stringGrid"></div></div></div></div>
 
 <script>
-const CURRENT_PLANT=<?php echo json_encode($currentPlantId); ?>;
-const PLANT_INFO=<?php echo json_encode($plantInfo, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
-const TOKEN=new URLSearchParams(location.search).get('token')||sessionStorage.getItem('vs_token')||localStorage.getItem('vs_token')||'';
-const WS_URL='wss://vinobasolar.scadahub.in:5001';
-const state={inverters:{},vcbPower:0,hasVcb:false,vcbToday:null,peakPower:0,lastLive:0,lastUpdate:''};
-const windows={inverter:{start:'',end:''},vcb:{start:'',end:''},transformer:{start:'',end:''}};
-const requestedHistory=new Set();
-let ws=null,reconnectTimer=null,apiTimer=null;
-
-function indiaParts(){const o={};new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(new Date()).forEach(x=>{if(x.type!=='literal')o[x.type]=x.value});return o;}
-function indiaDate(){const p=indiaParts();return `${p.year}-${p.month}-${p.day}`;}
-function nowMinutes(){const p=indiaParts();return Number(p.hour)*60+Number(p.minute);}
-function currentTime(){const p=indiaParts();return `${p.hour}:${p.minute}`;}
-function clockTick(){const p=indiaParts();document.getElementById('clockDisplay').textContent=`${p.hour}:${p.minute}:${p.second}`;}
-clockTick();setInterval(clockTick,1000);
-
-function numberValue(v){const n=Number(v);return Number.isFinite(n)?n:0;}
-function inverterPower(values){for(const [k,v] of Object.entries(values||{})){const x=k.toLowerCase();if(/active.*power|ac.*power|power.*ac|a\.c\..*power/.test(x)&&!/reactive|apparent|3.phase/.test(x))return numberValue(v);}return 0;}
-function vcbPower(values){if(values&&values['3 Phase Active Power']!==undefined)return numberValue(values['3 Phase Active Power']);for(const [k,v] of Object.entries(values||{})){const x=k.toLowerCase();if(/3.*phase.*active.*power|active.*power/.test(x)&&!/reactive|apparent/.test(x))return numberValue(v);}return 0;}
-function inverterDaily(values){for(const [k,v] of Object.entries(values||{}))if(/daily.*generation|daily.*gen/i.test(k))return numberValue(v);return null;}
-function stringSummary(values){let active=0,total=0;for(const [k,v] of Object.entries(values||{})){const x=k.toLowerCase();if(/phase|3.phase|freq|temp|reactive|apparent|inverter.*curr|total.*curr|grid.*curr|dc.*curr/.test(x))continue;if(/\d/.test(k)&&/curr|current|amp/i.test(k)){total++;if(numberValue(v)>.5)active++;}}return {active,total};}
-function inverterTotalPower(){return Object.values(state.inverters).reduce((s,v)=>s+numberValue(v.power),0);}
-function inverterTotalEnergy(){return Object.values(state.inverters).reduce((s,v)=>s+numberValue(v.daily),0);}
-function activePower(){return state.hasVcb?state.vcbPower:inverterTotalPower();}
-function todayEnergy(){return state.vcbToday!==null?state.vcbToday:inverterTotalEnergy();}
-
-function setConnection(mode){const pulse=document.getElementById('refreshPulse'),header=document.getElementById('headerLiveText'),source=document.getElementById('sourceBadge'),dataMode=document.getElementById('dataModeText'),live=document.getElementById('liveStatus'),powerPill=document.getElementById('powerLivePill');let cls='bg-slate-400',text='Connecting',badge='bg-slate-100 text-slate-500';if(mode==='live'){cls='bg-emerald-500 live-ring';text='Live WebSocket';badge='bg-emerald-50 text-emerald-700';}else if(mode==='db'){cls='bg-blue-500';text='DB fallback';badge='bg-blue-50 text-blue-700';}else if(mode==='reconnecting'){cls='bg-red-500';text='Reconnecting';badge='bg-red-50 text-red-700';}pulse.className='status-dot '+cls;header.textContent=text;header.className='text-[10px] font-black uppercase tracking-wider '+(mode==='live'?'text-emerald-600':mode==='db'?'text-blue-600':mode==='reconnecting'?'text-red-600':'text-slate-500');source.textContent=text;source.className='inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider '+badge;dataMode.textContent=text;live.innerHTML=`<span class="status-dot ${cls.split(' ')[0]}"></span>${text.toUpperCase()}`;live.className='inline-flex items-center gap-2 text-[10px] font-black rounded-full px-3 py-1.5 '+badge;powerPill.textContent=mode==='live'?'LIVE':mode==='db'?'DB':'WAITING';powerPill.className='text-[9px] font-black px-2 py-1 rounded-full '+badge;}
-function markUpdate(label){state.lastUpdate=label||new Date().toLocaleTimeString('en-IN',{hour12:false});document.getElementById('lastUpdateText').textContent='Updated '+state.lastUpdate;}
-
-function renderWindow(type){const item=windows[type];const start=document.getElementById(type+'_start_time'),end=document.getElementById(type+'_end_time'),badge=document.getElementById(type+'WindowState');if(start)start.textContent=item.start||'--:--';if(end)end.textContent=item.end||'--:--';if(badge){badge.textContent=item.start?'ACTIVE TODAY':'WAITING';badge.className='text-[9px] font-black mt-0.5 '+(item.start?'text-emerald-600':'text-slate-400');}}
-function mergeWindow(type,start,end){if(!windows[type])return;if(start&&(!windows[type].start||start<windows[type].start))windows[type].start=start;if(end&&(!windows[type].end||end>windows[type].end))windows[type].end=end;renderWindow(type);}
-function recordLiveWindow(type,active){if(!active)return;const t=currentTime();mergeWindow(type,t,t);}
-function parseHistoryTime(raw){const m=String(raw||'').match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);if(!m)return '';return String(Number(m[1])).padStart(2,'0')+':'+m[2];}
-
-function render(){const power=activePower(),energy=todayEnergy(),inv=Object.values(state.inverters),activeStrings=inv.reduce((s,x)=>s+numberValue(x.active),0),totalStrings=inv.reduce((s,x)=>s+numberValue(x.total),0);state.peakPower=Math.max(state.peakPower,power);document.getElementById('vcb_active').innerHTML=power.toFixed(2)+' <span class="text-sm font-bold text-blue-600">kW</span>';document.getElementById('vcb_etoday').innerHTML=energy.toFixed(2)+' <span class="text-sm font-bold text-purple-600">kWh</span>';document.getElementById('vcb_peak').textContent=state.peakPower.toFixed(2)+' kW';document.getElementById('powerSource').textContent=state.hasVcb?'HT / VCB active power':'Combined inverter active power';document.getElementById('energySource').textContent=state.vcbToday!==null?'HT / VCB today energy':'Combined inverter daily generation';document.getElementById('htAvailability').textContent=state.hasVcb||state.vcbToday!==null?'HT DATA LIVE':'HT OPTIONAL';document.getElementById('htAvailability').className='text-[9px] font-black rounded-full px-2.5 py-1.5 whitespace-nowrap '+(state.hasVcb||state.vcbToday!==null?'bg-emerald-50 text-emerald-700':'bg-slate-100 text-slate-500');document.getElementById('inverterCount').textContent=inv.length;document.getElementById('stringHealth').textContent=totalStrings?`${activeStrings}/${totalStrings}`:'No string telemetry';const health=document.getElementById('inverterHealthPill');if(inv.length){const healthy=totalStrings===0||activeStrings>0;health.textContent=healthy?'ONLINE':'CHECK';health.className='text-[9px] font-black px-2 py-1 rounded-full '+(healthy?'bg-emerald-50 text-emerald-700':'bg-red-50 text-red-700');}renderInverters();updateCurrentChart(power);}
-function renderInverters(){const grid=document.getElementById('inv_grid'),keys=Object.keys(state.inverters).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));if(!keys.length)return;grid.innerHTML=keys.map(name=>{const v=state.inverters[name],good=v.total>0&&v.active>=Math.min(22,v.total),bad=v.total>0&&v.active===0,online=numberValue(v.power)>0||numberValue(v.daily)>0;const border=bad?'border-red-200':good?'border-emerald-200':'border-slate-200',dot=bad?'bg-red-500':online?'bg-emerald-500':'bg-slate-400',badge=bad?'bg-red-50 text-red-700':online?'bg-emerald-50 text-emerald-700':'bg-slate-100 text-slate-500';return `<div class="rounded-xl border ${border} bg-white p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-xs font-black text-slate-700 truncate">${name}</p><p class="metric-value text-2xl font-black text-slate-950 mt-1">${numberValue(v.power).toFixed(1)} <span class="text-xs font-bold text-blue-600">kW</span></p></div><span class="inline-flex items-center gap-1.5 text-[9px] font-black px-2 py-1 rounded-full ${badge}"><span class="status-dot ${dot}"></span>${bad?'CHECK':online?'LIVE':'IDLE'}</span></div><div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-100"><div><p class="mini-label">Today</p><p class="text-sm font-black text-slate-700 mt-1">${numberValue(v.daily).toFixed(1)} kWh</p></div><div><p class="mini-label">Strings</p><p class="text-sm font-black text-slate-700 mt-1">${v.total?`${v.active}/${v.total}`:'--'}</p></div></div></div>`}).join('');}
-
-const chart=new Chart(document.getElementById('powerChart').getContext('2d'),{type:'line',data:{labels:[],datasets:[{label:'Plant Output',data:[],borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.07)',fill:true,tension:.28,pointRadius:0,pointHoverRadius:4,borderWidth:2.5}]},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{displayColors:false}},scales:{x:{grid:{display:false},ticks:{color:'#94a3b8',maxTicksLimit:12}},y:{beginAtZero:true,grid:{color:'#f1f5f9'},ticks:{color:'#94a3b8'},title:{display:true,text:'kW',color:'#94a3b8'}}}}});
-function updateCurrentChart(power){const p=indiaParts(),label=`${p.hour}:00`,idx=chart.data.labels.indexOf(label);if(idx>=0){chart.data.datasets[0].data[idx]=power;chart.update('none');}else if(numberValue(power)>0){chart.data.labels.push(label);chart.data.datasets[0].data.push(power);chart.update('none');}}
-function loadChart(rows){if(!Array.isArray(rows))return;const labels=[],data=[];rows.forEach(r=>{const val=numberValue(r.vcb_kw)||numberValue(r.inv_total_kw);if(val!==0){labels.push(r.time_label);data.push(val);}});if(labels.length){chart.data.labels=labels;chart.data.datasets[0].data=data;chart.update('none');}}
-
-function requestHistory(device){if(!ws||ws.readyState!==WebSocket.OPEN||!device||requestedHistory.has(device))return;requestedHistory.add(device);ws.send(JSON.stringify({type:'get_daily_data',unit_id:CURRENT_PLANT,device,date:indiaDate()}));}
-function handleDailyData(d){const rows=d.data||d.records||d.results||d.values||[];if(!Array.isArray(rows)||!rows.length)return;const sample=rows[0]||{},sampleValues=sample.values||sample.data||sample;const device=String(d.device||d.task||sample.device||'').toLowerCase();const keys=sampleValues&&typeof sampleValues==='object'?Object.keys(sampleValues):[];let type='';if(device.includes('transformer')||keys.some(k=>/oil.*temp|winding.*temp/i.test(k)))type='transformer';else if(device.includes('vcb')||keys.some(k=>/3.*phase.*active.*power|phase-n voltage|active total export/i.test(k)))type='vcb';else if(device.includes('inv')||keys.some(k=>/active.*power|ac.*power/i.test(k)))type='inverter';if(!type)return;const times=[],hourly={};rows.forEach(row=>{const values=row.values||row.data||row,ts=row.timestamp||row.time||row.recorded_at||row.datetime||row.date||'',time=parseHistoryTime(ts);let active=false,power=0;if(type==='vcb'){power=vcbPower(values);active=power>0;}else if(type==='inverter'){power=inverterPower(values);active=power>0;}else{active=Object.entries(values||{}).some(([k,v])=>/oil.*temp|winding.*temp/i.test(k)&&numberValue(v)>0);}if(active&&time)times.push(time);if(type==='vcb'&&time){const h=time.slice(0,2)+':00';hourly[h]=power;}});if(times.length){times.sort();mergeWindow(type,times[0],times[times.length-1]);}if(type==='vcb'&&Object.keys(hourly).length){const labels=Object.keys(hourly).sort();chart.data.labels=labels;chart.data.datasets[0].data=labels.map(k=>hourly[k]);chart.update('none');}}
-
-function handleLive(d){if(!d)return;if(d.type==='daily_data_result'){handleDailyData(d);return;}if(d.unit_id!==CURRENT_PLANT)return;state.lastLive=Date.now();setConnection('live');markUpdate(d.time||new Date().toLocaleTimeString('en-IN',{hour12:false}));const values=d.values||{},task=String(d.task||'').toLowerCase(),device=String(d.device||'').toLowerCase(),isVcb=task==='vcb'||device.includes('vcb'),isTransformer=task==='transformer'||device.includes('transformer');if(isVcb){const p=vcbPower(values);if(values['3 Phase Active Power']!==undefined||p!==0){state.vcbPower=p;state.hasVcb=true;}recordLiveWindow('vcb',p>0);}for(const [k,x] of Object.entries(d.virtualTags||{})){if(/vcb.*today|today.*energy/i.test(k)){const n=Number(typeof x==='object'?x.value:x);if(Number.isFinite(n))state.vcbToday=n;break;}}const isInv=!isVcb&&!isTransformer&&(task==='inverter'||device.includes('inverter')||Object.keys(values).some(k=>/active.*power|ac.*power/i.test(k)));if(isInv){const name=d.device||'Inverter',old=state.inverters[name]||{},summary=stringSummary(values),daily=inverterDaily(values),power=inverterPower(values);state.inverters[name]={power:power||old.power||0,daily:daily===null?(old.daily||0):daily,active:summary.total?summary.active:(old.active||0),total:summary.total||(old.total||0)};recordLiveWindow('inverter',power>0);requestHistory(name);}if(isTransformer){const active=Object.entries(values).some(([k,v])=>/oil.*temp|winding.*temp/i.test(k)&&numberValue(v)>0);recordLiveWindow('transformer',active);}if(values['raw data']!==undefined)document.getElementById('wmos_rad').textContent=values['raw data'];if(values['pannel temperature']!==undefined)document.getElementById('wmos_ptemp').textContent=values['pannel temperature'];if(values['windspeed']!==undefined)document.getElementById('wmos_wind').textContent=values['windspeed'];render();}
-window.handleLive=handleLive;
-
-function connect(){if(ws&&(ws.readyState===WebSocket.OPEN||ws.readyState===WebSocket.CONNECTING))return;setConnection('connecting');ws=new WebSocket(WS_URL);ws.onopen=()=>{setConnection('live');markUpdate('connected');ws.send(JSON.stringify({type:'subscribe',unit_id:CURRENT_PLANT}));requestHistory('VCB');requestHistory('Transformer');};ws.onmessage=e=>{try{handleLive(JSON.parse(e.data));}catch(err){console.warn('WS message error',err);}};ws.onclose=()=>{ws=null;requestedHistory.clear();setConnection('reconnecting');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,3000);};ws.onerror=()=>{try{ws.close();}catch(_){}};}
-
-function hydrateTimes(meta){const t=meta?.operating_times||{};['inverter','vcb','transformer'].forEach(type=>{const x=t[type]||{};mergeWindow(type,x.start||'',x.end||'');});}
-async function apiFallback(){try{const q=new URLSearchParams({tab:'inv_vcb',type:'daily',date:indiaDate(),plant:CURRENT_PLANT});if(TOKEN)q.set('token',TOKEN);const r=await fetch('api_reports.php?'+q,{cache:'no-store',headers:TOKEN?{Authorization:'Bearer '+TOKEN}:{}}),j=await r.json();if(!j.success||!Array.isArray(j.data))return;hydrateTimes(j.meta);if(!chart.data.labels.length)loadChart(j.data);if(Date.now()-state.lastLive<20000)return;const elapsed=j.data.filter(row=>{const m=String(row.time_label||'').match(/^(\d+):(\d+)/);return m&&Number(m[1])*60+Number(m[2])<=nowMinutes();}),row=elapsed.at(-1)||j.data[0],names=j.meta?.inv_names||[];names.forEach((name,i)=>{const old=state.inverters[name]||{};state.inverters[name]={...old,power:numberValue(row['inv'+(i+1)+'_kw']),daily:numberValue(row['inv'+(i+1)+'_kwh'])};});state.hasVcb=!!j.meta?.ht_available;state.vcbPower=numberValue(row.vcb_kw);state.vcbToday=j.meta?.ht_available?numberValue(row.vcb_kwh):null;setConnection('db');markUpdate('database');render();}catch(_){}}
-
-setConnection('connecting');
-connect();
-setTimeout(apiFallback,4000);
-apiTimer=setInterval(apiFallback,30000);
+const CURRENT_PLANT=<?php echo json_encode($currentPlantId); ?>;const TOKEN=new URLSearchParams(location.search).get('token')||sessionStorage.getItem('vs_token')||localStorage.getItem('vs_token')||'';const WS_URL='wss://vinobasolar.scadahub.in:5001';const state={inverters:{},vcbPower:0,hasVcb:false,vcbToday:null,peak:0,lastLive:0};const windows={inverter:{start:'',end:''},vcb:{start:'',end:''},transformer:{start:'',end:''}};const historyRequested=new Set();let ws=null,reconnectTimer=null;
+function indiaParts(){const o={};new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(new Date()).forEach(x=>{if(x.type!=='literal')o[x.type]=x.value});return o}function indiaDate(){const p=indiaParts();return `${p.year}-${p.month}-${p.day}`}function currentTime(){const p=indiaParts();return `${p.hour}:${p.minute}`}function currentMinutes(){const p=indiaParts();return Number(p.hour)*60+Number(p.minute)}function tickClock(){const p=indiaParts();document.getElementById('clockDisplay').textContent=`${p.hour}:${p.minute}:${p.second}`}tickClock();setInterval(tickClock,1000);function n(v){const x=Number(v);return Number.isFinite(x)?x:0}
+function inverterPower(v){for(const [k,x] of Object.entries(v||{})){const s=k.toLowerCase();if(/active.*power|ac.*power|power.*ac|a\.c\..*power/.test(s)&&!/reactive|apparent|3.phase/.test(s))return n(x)}return 0}function inverterDaily(v){for(const [k,x] of Object.entries(v||{}))if(/daily.*generation|daily.*gen/i.test(k))return n(x);return null}function vcbPower(v){if(v&&v['3 Phase Active Power']!==undefined)return n(v['3 Phase Active Power']);for(const [k,x] of Object.entries(v||{})){const s=k.toLowerCase();if(/3.*phase.*active.*power|active.*power/.test(s)&&!/reactive|apparent/.test(s))return n(x)}return 0}function vcbToday(d){for(const [k,x] of Object.entries(d.virtualTags||{}))if(/vcb.*today|today.*energy/i.test(k))return n(x&&typeof x==='object'?x.value:x);return null}
+function stringData(values){const groups={},out=[];for(const [k,v] of Object.entries(values||{})){const lower=k.toLowerCase();if(/phase|3.phase|freq|temp|reactive|apparent|inverter.*curr|total.*curr|grid.*curr|dc.*curr/.test(lower))continue;const m=k.match(/(\d+)/);if(!m)continue;const no=Number(m[1]);if(!groups[no])groups[no]=[];groups[no].push([k,v])}Object.entries(groups).forEach(([no,items])=>{let current=null,voltage=null;items.forEach(([k,v])=>{const s=k.toLowerCase();if(current===null&&/curr|current|amp/.test(s)&&!/phase/.test(s))current=n(v);if(voltage===null&&/volt|voltage/.test(s))voltage=n(v)});if(current!==null)out.push({n:Number(no),curr:current,volt:voltage||0,active:current>.5})});return out.sort((a,b)=>a.n-b.n)}function totalInvPower(){return Object.values(state.inverters).reduce((s,x)=>s+n(x.power),0)}function totalInvEnergy(){return Object.values(state.inverters).reduce((s,x)=>s+n(x.daily),0)}function activePower(){return state.hasVcb?state.vcbPower:totalInvPower()}function todayEnergy(){return state.vcbToday!==null?state.vcbToday:totalInvEnergy()}
+function setConnection(mode){const dot=document.getElementById('refreshPulse'),text=document.getElementById('liveText');if(mode==='live'){dot.className='w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,.6)]';text.textContent='LIVE WEBSOCKET';text.className='text-[10px] font-bold text-emerald-600 hidden sm:inline'}else if(mode==='db'){dot.className='w-2.5 h-2.5 bg-blue-500 rounded-full';text.textContent='DATABASE FALLBACK';text.className='text-[10px] font-bold text-blue-600 hidden sm:inline'}else if(mode==='error'){dot.className='w-2.5 h-2.5 bg-red-500 rounded-full';text.textContent='RECONNECTING';text.className='text-[10px] font-bold text-red-600 hidden sm:inline'}else{dot.className='w-2.5 h-2.5 bg-slate-400 rounded-full';text.textContent='CONNECTING';text.className='text-[10px] font-bold text-slate-500 hidden sm:inline'}}
+function mergeWindow(type,start,end){const w=windows[type];if(!w)return;if(start&&(!w.start||start<w.start))w.start=start;if(end&&(!w.end||end>w.end))w.end=end;paintWindow(type)}function paintWindow(type){const w=windows[type],start=document.getElementById(type+'_start_time'),end=document.getElementById(type+'_end_time'),badge=document.getElementById(type+'_time_status');if(start)start.textContent=w.start||'--:--';if(end)end.textContent=w.end||'--:--';if(badge){badge.textContent=w.start?'ACTIVE TODAY':'WAITING';badge.className='text-[10px] font-bold rounded-full px-2 py-1 '+(w.start?'bg-emerald-100 text-emerald-700':'bg-slate-100 text-slate-500')}}function recordWindow(type,active){if(!active)return;const t=currentTime();mergeWindow(type,t,t)}function historyTime(raw){const m=String(raw||'').match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);return m?String(Number(m[1])).padStart(2,'0')+':'+m[2]:''}
+const chart=new Chart(document.getElementById('powerChart').getContext('2d'),{type:'line',data:{labels:[],datasets:[{label:'Plant Output',data:[],borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.06)',fill:true,tension:.25,pointRadius:0,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#94a3b8',maxTicksLimit:12}},y:{beginAtZero:true,grid:{color:'#f1f5f9'},ticks:{color:'#94a3b8'},title:{display:true,text:'kW'}}}}});function updateChartPoint(power){const p=indiaParts(),label=`${p.hour}:00`,idx=chart.data.labels.indexOf(label);if(idx>=0)chart.data.datasets[0].data[idx]=power;else if(power>0){chart.data.labels.push(label);chart.data.datasets[0].data.push(power)}chart.update('none')}function loadChart(rows){const labels=[],data=[];(rows||[]).forEach(r=>{const val=n(r.vcb_kw)||n(r.inv_total_kw);if(val>0){labels.push(r.time_label);data.push(val)}});if(labels.length){chart.data.labels=labels;chart.data.datasets[0].data=data;chart.update('none')}}
+function render(){const power=activePower(),energy=todayEnergy();state.peak=Math.max(state.peak,power);document.getElementById('vcb_active').innerHTML=power.toFixed(2)+' <span class="text-sm font-bold text-blue-600">kW</span>';document.getElementById('vcb_etoday').innerHTML=energy.toFixed(2)+' <span class="text-sm font-bold text-purple-600">kWh</span>';document.getElementById('vcb_peak').textContent=state.peak.toFixed(2);document.getElementById('energySource').textContent=state.vcbToday!==null?'HT / VCB today energy':'Combined inverter daily generation';renderInverters();updateChartPoint(power)}function renderInverters(){const grid=document.getElementById('inv_grid'),names=Object.keys(state.inverters).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));document.getElementById('inverterCount').textContent=names.length+' inverter'+(names.length===1?'':'s');if(!names.length)return;grid.innerHTML=names.map(name=>{const x=state.inverters[name],online=n(x.power)>0||n(x.daily)>0,active=x.strings.filter(s=>s.active).length,total=x.strings.length;const encoded=encodeURIComponent(name);return `<button type="button" data-inverter="${encoded}" class="inverter-card text-left bg-slate-50 hover:bg-white rounded-xl border border-slate-200 p-4 transition"><div class="flex items-start justify-between gap-2"><div><p class="text-xs font-black text-slate-700">${name}</p><p class="text-2xl font-black text-slate-900 mt-1">${n(x.power).toFixed(1)} <span class="text-xs text-blue-600">kW</span></p></div><span class="w-2.5 h-2.5 mt-1 rounded-full ${online?'bg-emerald-500':'bg-slate-300'}"></span></div><div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-200"><div><p class="text-[9px] font-bold text-slate-400 uppercase">Today</p><p class="text-xs font-black text-slate-700 mt-1">${n(x.daily).toFixed(1)} kWh</p></div><div><p class="text-[9px] font-bold text-slate-400 uppercase">Strings</p><p class="text-xs font-black text-slate-700 mt-1">${total?active+'/'+total:'--'}</p></div></div></button>`}).join('');grid.querySelectorAll('.inverter-card').forEach(btn=>btn.addEventListener('click',()=>openStringModal(decodeURIComponent(btn.dataset.inverter||''))))}
+function openStringModal(name){const x=state.inverters[name];if(!x)return;document.getElementById('stringModalTitle').textContent=name+' - String Details';document.getElementById('stringGrid').innerHTML=(x.strings||[]).map(s=>`<div class="rounded-lg border ${s.active?'border-emerald-200 bg-emerald-50':'border-slate-200 bg-slate-50'} p-3 text-center"><p class="text-[10px] font-black text-slate-500">STRING ${s.n}</p><p class="text-lg font-black text-slate-800 mt-1">${s.curr.toFixed(2)} A</p><p class="text-[10px] text-slate-500 mt-1">${s.volt?s.volt.toFixed(1)+' V':'--'}</p></div>`).join('')||'<p class="col-span-full text-center text-sm text-slate-400 py-6">No string current telemetry available.</p>';document.getElementById('stringModal').classList.remove('hidden')}function closeStringModal(){document.getElementById('stringModal').classList.add('hidden')}window.openStringModal=openStringModal;window.closeStringModal=closeStringModal;
+function requestHistory(device){if(!ws||ws.readyState!==WebSocket.OPEN||!device||historyRequested.has(device))return;historyRequested.add(device);ws.send(JSON.stringify({type:'get_daily_data',unit_id:CURRENT_PLANT,device,date:indiaDate()}))}function handleHistory(d){const rows=d.data||d.records||d.results||d.values||[];if(!Array.isArray(rows)||!rows.length)return;const sample=rows[0]||{},sv=sample.values||sample.data||sample,device=String(d.device||d.task||sample.device||'').toLowerCase(),keys=sv&&typeof sv==='object'?Object.keys(sv):[];let type='';if(device.includes('transformer')||keys.some(k=>/oil.*temp|winding.*temp/i.test(k)))type='transformer';else if(device.includes('vcb')||keys.some(k=>/3.*phase.*active.*power|phase-n voltage|active total export/i.test(k)))type='vcb';else if(device.includes('inv')||keys.some(k=>/active.*power|ac.*power/i.test(k)))type='inverter';if(!type)return;const times=[],hourly={};rows.forEach(row=>{const values=row.values||row.data||row,ts=row.timestamp||row.time||row.recorded_at||row.datetime||row.date||'',time=historyTime(ts);let active=false,power=0;if(type==='vcb'){power=vcbPower(values);active=power>0}else if(type==='inverter'){power=inverterPower(values);active=power>0}else active=Object.entries(values||{}).some(([k,v])=>/oil.*temp|winding.*temp/i.test(k)&&n(v)>0);if(active&&time)times.push(time);if(type==='vcb'&&time)hourly[time.slice(0,2)+':00']=power});if(times.length){times.sort();mergeWindow(type,times[0],times[times.length-1])}if(type==='vcb'&&Object.keys(hourly).length){const labels=Object.keys(hourly).sort();chart.data.labels=labels;chart.data.datasets[0].data=labels.map(k=>hourly[k]);chart.update('none')}}
+function handleLive(d){if(!d)return;if(d.type==='daily_data_result'){handleHistory(d);return}if(d.unit_id!==CURRENT_PLANT)return;state.lastLive=Date.now();setConnection('live');document.getElementById('windowSource').textContent='Live WebSocket';document.getElementById('chartSource').textContent='Live SCADA';const values=d.values||{},task=String(d.task||'').toLowerCase(),device=String(d.device||'').toLowerCase(),isVcb=task==='vcb'||device.includes('vcb'),isTransformer=task==='transformer'||device.includes('transformer');if(isVcb){const p=vcbPower(values);if(values['3 Phase Active Power']!==undefined||p!==0){state.vcbPower=p;state.hasVcb=true}const today=vcbToday(d);if(today!==null)state.vcbToday=today;recordWindow('vcb',p>0)}const isInv=!isVcb&&!isTransformer&&(task==='inverter'||device.includes('inverter')||Object.keys(values).some(k=>/active.*power|ac.*power/i.test(k)));if(isInv){const name=d.device||'Inverter',old=state.inverters[name]||{},daily=inverterDaily(values),power=inverterPower(values),strings=stringData(values);state.inverters[name]={power:power||old.power||0,daily:daily===null?n(old.daily):daily,strings:strings.length?strings:(old.strings||[])};recordWindow('inverter',power>0);requestHistory(name)}if(isTransformer){const active=Object.entries(values).some(([k,v])=>/oil.*temp|winding.*temp/i.test(k)&&n(v)>0);recordWindow('transformer',active)}if(values['raw data']!==undefined)document.getElementById('wmos_rad').textContent=values['raw data'];if(values['pannel temperature']!==undefined)document.getElementById('wmos_ptemp').textContent=values['pannel temperature'];if(values['panel temperature']!==undefined)document.getElementById('wmos_ptemp').textContent=values['panel temperature'];if(values['windspeed']!==undefined)document.getElementById('wmos_wind').textContent=values['windspeed'];render()}window.handleLive=handleLive;
+function connect(){if(ws&&(ws.readyState===WebSocket.OPEN||ws.readyState===WebSocket.CONNECTING))return;setConnection('connecting');try{ws=new WebSocket(WS_URL);ws.onopen=()=>{setConnection('live');ws.send(JSON.stringify({type:'subscribe',unit_id:CURRENT_PLANT}));requestHistory('VCB');requestHistory('Transformer')};ws.onmessage=e=>{try{handleLive(JSON.parse(e.data))}catch(_){}};ws.onclose=()=>{ws=null;historyRequested.clear();setConnection('error');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,3000)};ws.onerror=()=>{try{ws.close()}catch(_){}}}catch(_){setConnection('error');reconnectTimer=setTimeout(connect,3000)}}
+async function dbFallback(){try{const q=new URLSearchParams({tab:'inv_vcb',type:'daily',date:indiaDate(),plant:CURRENT_PLANT});if(TOKEN)q.set('token',TOKEN);const r=await fetch('api_reports.php?'+q.toString(),{cache:'no-store',headers:TOKEN?{Authorization:'Bearer '+TOKEN}:{}}),j=await r.json();if(!j.success||!Array.isArray(j.data))return;const oper=j.meta?.operating_times||{};['inverter','vcb','transformer'].forEach(type=>{const x=oper[type]||{};mergeWindow(type,x.start||'',x.end||'')});if(!chart.data.labels.length)loadChart(j.data);if(Date.now()-state.lastLive<20000)return;const elapsed=j.data.filter(row=>{const m=String(row.time_label||'').match(/^(\d+):(\d+)/);return m&&Number(m[1])*60+Number(m[2])<=currentMinutes()}),row=elapsed.at(-1)||j.data[0],names=j.meta?.inv_names||[];names.forEach((name,i)=>{const old=state.inverters[name]||{};state.inverters[name]={power:n(row['inv'+(i+1)+'_kw']),daily:n(row['inv'+(i+1)+'_kwh']),strings:old.strings||[]}});state.hasVcb=!!j.meta?.ht_available;state.vcbPower=n(row.vcb_kw);state.vcbToday=j.meta?.ht_available?n(row.vcb_kwh):null;setConnection('db');document.getElementById('windowSource').textContent='Database fallback';document.getElementById('chartSource').textContent='Database history';render()}catch(_){}}
+setConnection('connecting');connect();setTimeout(dbFallback,3000);setInterval(dbFallback,30000);
 </script>
 </body>
 </html>
