@@ -1,22 +1,9 @@
 <?php
-// Database secrets must stay on the server, not in GitHub.
-// Priority: environment variables -> config.local.php -> safe defaults.
-$localConfig = [];
-$localConfigPath = __DIR__ . '/config.local.php';
-if (is_file($localConfigPath)) {
-    $loaded = require $localConfigPath;
-    if (is_array($loaded)) $localConfig = $loaded;
-}
-
-$envHost = getenv('SCADA_DB_HOST');
-$envUser = getenv('SCADA_DB_USER');
-$envPassword = getenv('SCADA_DB_PASSWORD');
-$envName = getenv('SCADA_DB_NAME');
-
-$host = ($envHost !== false && $envHost !== '') ? $envHost : (string)($localConfig['host'] ?? 'localhost');
-$username = ($envUser !== false && $envUser !== '') ? $envUser : (string)($localConfig['username'] ?? 'root');
-$password = ($envPassword !== false) ? $envPassword : (string)($localConfig['password'] ?? '');
-$dbname = ($envName !== false && $envName !== '') ? $envName : (string)($localConfig['dbname'] ?? 'vinoba-renewbale');
+// Direct MySQL configuration for this SCADA deployment.
+$host = 'localhost';
+$username = 'root';
+$password = 'Arun@811001';
+$dbname = 'vinoba-renewbale';
 
 $conn = null;
 $dbError = null;
