@@ -1,7 +1,7 @@
 <?php
 $host = getenv('SCADA_DB_HOST') ?: 'localhost';
 $username = getenv('SCADA_DB_USER') ?: 'root';
-$password = getenv('SCADA_DB_PASSWORD') ?: 'Arun@811001';
+$password = getenv('SCADA_DB_PASSWORD') ?: '';
 $dbname = getenv('SCADA_DB_NAME') ?: 'vinoba-renewbale';
 
 // Both SCADA plants (vinoba-1 and ssv) use this one shared database.
