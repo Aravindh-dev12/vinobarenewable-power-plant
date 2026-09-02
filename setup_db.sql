@@ -1,6 +1,8 @@
-CREATE DATABASE IF NOT EXISTS `solar_scada`
+-- Shared SCADA database for both plants.
+-- vinoba-1 and ssv use the same tables; plant_id identifies each plant's rows.
+CREATE DATABASE IF NOT EXISTS `vinoba-renewbale`
     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `solar_scada`;
+USE `vinoba-renewbale`;
 
 DROP TABLE IF EXISTS `plants`;
 CREATE TABLE `plants` (
@@ -25,7 +27,8 @@ CREATE TABLE `users` (
     `role` VARCHAR(20) NOT NULL DEFAULT 'user',
     `plant_id` VARCHAR(50) DEFAULT '',
     `auth_token` VARCHAR(128) DEFAULT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_users_plant` (`plant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Keep the existing admin login. Site users should be created from the Admin page
@@ -142,5 +145,7 @@ CREATE TABLE `telemetry_history` (
     INDEX `idx_hist_plant_type` (`plant_id`,`metric_type`), INDEX `idx_hist_time` (`recorded_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- HT/VCB and transformer telemetry are optional. The application will continue
+-- Both plants share every telemetry table above. Never create separate per-plant
+-- databases or duplicate telemetry tables. Filter/query rows by plant_id.
+-- HT/VCB and transformer telemetry are optional. The application continues
 -- with inverter data when those devices are not published by a SCADA unit.
