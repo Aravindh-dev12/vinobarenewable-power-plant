@@ -1,5 +1,9 @@
 DirectoryIndex index.php
 
+<Files "config.local.php">
+    Require all denied
+</Files>
+
 <IfModule mod_headers.c>
     <FilesMatch "^(sidebar-control\.js|sidebar\.html|dashboard-ui\.js|dashboard-ui\.css|api_live\.php)$">
         Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
