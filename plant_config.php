@@ -22,19 +22,7 @@ function plant_catalog(): array
 
 function normalize_plant_id(?string $plantId): string
 {
-    $id = strtolower(trim((string)$plantId));
-    if ($id === '') return '';
-
-    $aliases = [
-        'vinoba-1' => 'vinoba-1',
-        'vinoba-velliyanai' => 'vinoba-1',
-        'vinoba' => 'vinoba-1',
-        'ssv' => 'ssv',
-        'makkalpower' => 'ssv',
-        'makkal-power' => 'ssv',
-        'anushyam' => 'ssv',
-    ];
-    return $aliases[$id] ?? $id;
+    return strtolower(trim((string)$plantId));
 }
 
 function plant_info(?string $plantId): ?array
@@ -46,26 +34,23 @@ function plant_info(?string $plantId): ?array
 
 function is_valid_plant_id(?string $plantId): bool
 {
-    $id = normalize_plant_id($plantId);
-    return isset(plant_catalog()[$id]);
+    return isset(plant_catalog()[normalize_plant_id($plantId)]);
 }
 
 function migrate_user_plant_alias(mysqli $conn, array &$user): void
 {
-    $old = trim((string)($user['plant_id'] ?? ''));
-    if ($old === '') return;
-    $new = normalize_plant_id($old);
-    if (!is_valid_plant_id($new) || $new === $old) {
-        if (is_valid_plant_id($new)) $user['plant_id'] = $new;
-        return;
-    }
+    $raw = (string)($user['plant_id'] ?? '');
+    $normalized = normalize_plant_id($raw);
+    if (!is_valid_plant_id($normalized)) return;
+
+    $user['plant_id'] = $normalized;
+    if ($normalized === $raw) return;
 
     $stmt = $conn->prepare('UPDATE users SET plant_id = ? WHERE id = ?');
     if ($stmt) {
         $uid = (int)$user['id'];
-        $stmt->bind_param('si', $new, $uid);
+        $stmt->bind_param('si', $normalized, $uid);
         $stmt->execute();
         $stmt->close();
     }
-    $user['plant_id'] = $new;
 }
