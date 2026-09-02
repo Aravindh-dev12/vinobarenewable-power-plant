@@ -48,10 +48,10 @@ $lastTelemetry=[];function telemetry(mysqli $conn,string $unit,string $type,floa
 $plants=array_keys(plant_catalog());$allowed=array_fill_keys($plants,true);$runSeconds=(int)(getenv('RUN_SECONDS')?:($_GET['run_seconds']??0));$started=time();
 while(true){if($runSeconds>0&&time()-$started>=$runSeconds)exit(0);$ws=new PlantWSClient('161.97.87.75',5000,'/');if(!$ws->connect()){sleep(5);continue;}foreach($plants as $p){$ws->send(json_encode(['type'=>'subscribe','unit_id'=>$p]));echo "[WS] subscribed $p\n";}
     while(true){if($runSeconds>0&&time()-$started>=$runSeconds){$ws->close();exit(0);}$frame=$ws->read();if($frame===null||$frame['op']==='close')break;if($frame['op']!=='text'||$frame['payload']==='')continue;$d=json_decode($frame['payload'],true);if(!$d||!isset($d['unit_id'])||!isset($allowed[$d['unit_id']]))continue;$unit=$d['unit_id'];$task=strtolower((string)($d['task']??''));$dev=strtolower((string)($d['device']??''));$v=$d['values']??[];
-        $vcbKeys=isset($v['3 Phase Active Power'])&&(isset($v['R Phase-N Voltage'])||isset($v['Active Total Export']));if($task==='vcb'||str_contains($dev,'vcb')||$vcbKeys){insertVcb($conn,$unit,$d);if(isset($v['3 Phase Active Power']))telemetry($conn,$unit,'vcb_power',(float)$v['3 Phase Active Power']);continue;}
-        if($task==='transformer'||str_contains($dev,'transformer')){insertTransformer($conn,$unit,$d);continue;}
+        $vcbKeys=isset($v['3 Phase Active Power'])&&(isset($v['R Phase-N Voltage'])||isset($v['Active Total Export']));if($task==='vcb'||strpos($dev,'vcb')!==false||$vcbKeys){insertVcb($conn,$unit,$d);if(isset($v['3 Phase Active Power']))telemetry($conn,$unit,'vcb_power',(float)$v['3 Phase Active Power']);continue;}
+        if($task==='transformer'||strpos($dev,'transformer')!==false){insertTransformer($conn,$unit,$d);continue;}
         if(isset($v['raw data'])||isset($v['pannel temperature'])||isset($v['windspeed'])){insertWeather($conn,$unit,$d);if(isset($v['raw data']))telemetry($conn,$unit,'radiation',(float)$v['raw data']);continue;}
-        $keys=array_keys($v);$isInv=$task==='inverter'||str_contains($dev,'inverter');if(!$isInv){foreach($keys as $k){$l=strtolower($k);if(preg_match('/active.*power|ac.*power/',$l)&&!preg_match('/reactive|apparent|3.phase/',$l)){$isInv=true;break;}}}
+        $keys=array_keys($v);$isInv=$task==='inverter'||strpos($dev,'inverter')!==false;if(!$isInv){foreach($keys as $k){$l=strtolower($k);if(preg_match('/active.*power|ac.*power/',$l)&&!preg_match('/reactive|apparent|3.phase/',$l)){$isInv=true;break;}}}
         if($isInv){insertInverter($conn,$unit,$d);$p=inverterPower($v);if($p>0)telemetry($conn,$unit,'inverter_power',$p);}
     }$ws->close();sleep(5);
 }
