@@ -1,10 +1,11 @@
+<link rel="stylesheet" href="dashboard-ui.css?v=1" data-dashboard-ui>
 <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 shadow-xl flex flex-col fixed inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-40">
   <div class="p-4 border-b border-gray-100 relative shrink-0">
-    <button id="closeSidebarBtn" class="md:hidden absolute top-4 right-4 text-gray-400 text-3xl hover:text-gray-800 leading-none">&times;</button>
-    <button id="collapseSidebarBtn" class="hidden md:flex absolute top-3 right-3 w-7 h-7 items-center justify-center rounded-md bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-700 transition" type="button" title="Collapse sidebar"><i class="fa-solid fa-angles-left text-[10px]"></i></button>
-    <div class="flex flex-col items-center text-center gap-3 mt-2">
-      <div class="sidebar-brand-icon h-16 w-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl font-bold shadow-lg transition-all"><i class="fa-solid fa-solar-panel"></i></div>
-      <div class="sidebar-brand-text"><h1 id="sidebarPlantName" class="text-sm font-bold text-gray-800 leading-tight">Solar Plant</h1><p id="sidebarServiceNumber" class="text-[9px] text-emerald-700 font-bold mt-1"></p><p class="text-[9px] text-gray-500 font-semibold mt-1 uppercase tracking-wide">Monitoring Dashboard</p></div>
+    <button id="closeSidebarBtn" aria-label="Close navigation" class="md:hidden absolute top-4 right-4 text-gray-400 text-3xl hover:text-gray-800 leading-none">&times;</button>
+    <button id="collapseSidebarBtn" aria-label="Collapse navigation" class="hidden md:flex absolute top-3 right-3 w-7 h-7 items-center justify-center rounded-md bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-700 transition" type="button" title="Collapse sidebar"><i class="fa-solid fa-angles-left text-[10px]"></i></button>
+    <div class="flex flex-col items-center text-center gap-3 mt-2 min-w-0">
+      <div class="sidebar-brand-icon h-16 w-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl font-bold shadow-lg transition-all shrink-0"><i class="fa-solid fa-solar-panel"></i></div>
+      <div class="sidebar-brand-text min-w-0 w-full"><h1 id="sidebarPlantName" class="text-sm font-bold text-gray-800 leading-tight break-words">Solar Plant</h1><p id="sidebarServiceNumber" class="text-[9px] text-emerald-700 font-bold mt-1"></p><p class="text-[9px] text-gray-500 font-semibold mt-1 uppercase tracking-wide">Monitoring Dashboard</p></div>
     </div>
   </div>
   <nav id="sidebarNav" class="flex-1 p-4 space-y-1 font-medium text-sm overflow-y-auto">
