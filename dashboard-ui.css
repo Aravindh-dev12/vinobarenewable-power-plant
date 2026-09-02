@@ -1,423 +1,158 @@
-/* Shared responsive UI layer + Vinoba SCADA visual parity. */
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; text-rendering: optimizeLegibility; scroll-behavior: smooth; }
-body { min-width: 0; overflow-x: hidden; }
-main { min-width: 0; }
-img, svg, video, canvas { max-width: 100%; }
-button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-button, input, select, textarea { font: inherit; }
-button:disabled { cursor: not-allowed; }
+/* Vinoba SCADA shared UI. Keep page telemetry IDs/logic untouched. */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-rendering:optimizeLegibility;scroll-behavior:smooth}
+body{min-width:0;overflow-x:hidden}
+main{min-width:0}
+img,svg,video,canvas{max-width:100%}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button,input,select,textarea{font:inherit}
+button:disabled{cursor:not-allowed}
 
-.ui-app-header,
-main > header,
-body > nav {
-    min-width: 0;
-    gap: .75rem;
-}
+.ui-table-scroll,.wrap,.overflow-x-auto,.table-hscroll{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}
+.ui-table-scroll table,.wrap table,.overflow-x-auto table{min-width:720px}
+.fixed.inset-0,.ui-modal{overflow-y:auto;overscroll-behavior:contain}
+.fixed.inset-0>*,.ui-modal>*{max-height:calc(100dvh - 2rem)}
 
-.ui-page,
-main > div[class*="p-4"],
-main > div[class*="p-6"],
-main > section[class*="p-4"],
-main > section[class*="p-6"] {
-    width: 100%;
-    min-width: 0;
-}
+/* --------------------------------------------------------------------------
+   VINOba plant-page shell
+   Every individual plant page contains #sidebar-container. Login/admin remain
+   independent so this layer cannot change their dedicated presentation.
+   -------------------------------------------------------------------------- */
+body:has(#sidebar-container){font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;background:#f8fafc!important;color:#1e293b!important}
+body:has(#sidebar-container) main{background:#f8fafc!important}
 
-.ui-surface,
-main .bg-white.rounded-xl,
-main .bg-white.rounded-2xl,
-main .bg-white.border.rounded-xl,
-main .bg-white.border.rounded-2xl {
-    min-width: 0;
-    transition: box-shadow 180ms ease, border-color 180ms ease;
-}
+/* Header */
+body:has(#sidebar-container) main>header{min-height:64px!important;background:#fff!important;border-bottom:1px solid #e2e8f0!important;box-shadow:0 1px 2px rgba(15,23,42,.05)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;padding:14px 24px!important;gap:12px!important}
+body:has(#sidebar-container) main>header h1,
+body:has(#sidebar-container) main>header h2{margin:0!important;color:#1e293b!important;font-size:1.25rem!important;line-height:1.6rem!important;font-weight:800!important;letter-spacing:-.015em!important}
+body:has(#sidebar-container) main>header p{color:#64748b!important;font-size:.75rem!important;line-height:1rem!important;margin-top:2px!important}
+body:has(#sidebar-container) main>header>div:last-child{min-height:36px!important;border:1px solid #e2e8f0!important;background:#f8fafc!important;border-radius:.5rem!important;padding:6px 10px!important;box-shadow:none!important}
 
-.ui-control,
-button,
-input,
-select,
-textarea {
-    min-height: 42px;
-    transition: box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
-}
+/* Page body */
+body:has(#sidebar-container) main>div[class*="max-w-"],
+body:has(#sidebar-container) main>section[class*="max-w-"],
+body:has(#sidebar-container) .dashboard-shell{width:100%!important;max-width:1600px!important;margin-left:auto!important;margin-right:auto!important;padding:20px 24px!important;gap:20px!important}
 
-.ui-control:focus-visible,
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-    outline: 2px solid currentColor;
-    outline-offset: 2px;
-}
-
-.ui-table-scroll,
-.wrap,
-.overflow-x-auto,
-.table-hscroll {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-gutter: stable;
-}
-
-.ui-table-scroll table,
-.wrap table,
-.overflow-x-auto table {
-    min-width: 720px;
-}
-
-.ui-modal,
-.fixed.inset-0 {
-    overflow-y: auto;
-    overscroll-behavior: contain;
-}
-
-.ui-modal > *,
-.fixed.inset-0 > * {
-    max-height: calc(100dvh - 2rem);
-}
-
-#sidebar {
-    max-width: 100vw;
-    will-change: transform, width;
-    overscroll-behavior: contain;
-}
-
-#sidebarNav { overscroll-behavior: contain; }
-#sidebarNav a,
-#sidebar a { min-height: 42px; }
-
-.ui-nowrap-safe,
-main .flex,
-main .grid { min-width: 0; }
-
-.ui-nowrap-safe > *,
-main .flex > *,
-main .grid > * { min-width: 0; }
-
-/* ------------------------------------------------------------------
-   VINOba SCADA PARITY
-   Scope this to pages that use the plant sidebar so the login screen
-   keeps its dedicated presentation.
-   ------------------------------------------------------------------ */
-body:has(#sidebar-container) {
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-    background: #f8fafc !important;
-    color: #1e293b !important;
-}
-
-body:has(#sidebar-container) main > header {
-    background: #ffffff !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, .05) !important;
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
-}
-
-body:has(#sidebar-container) main > header h1,
-body:has(#sidebar-container) main > header h2 {
-    color: #1e293b !important;
-    font-size: 1.25rem !important;
-    line-height: 1.75rem !important;
-    font-weight: 900 !important;
-    letter-spacing: -.015em !important;
-}
-
-body:has(#sidebar-container) main > header p {
-    color: #64748b;
-}
-
-body:has(#sidebar-container) .dashboard-shell,
-body:has(#sidebar-container) main > div[class*="max-w-"],
-body:has(#sidebar-container) main > section[class*="max-w-"] {
-    max-width: 1600px !important;
-}
-
-body:has(#sidebar-container) .surface,
+/* Cards: original Vinoba = flat white surface, 12px radius, light border. */
 body:has(#sidebar-container) main .bg-white.rounded-xl,
 body:has(#sidebar-container) main .bg-white.rounded-2xl,
 body:has(#sidebar-container) main .bg-white.border.rounded-xl,
-body:has(#sidebar-container) main .bg-white.border.rounded-2xl {
-    border-radius: .75rem !important;
-    border-color: #e2e8f0 !important;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
-}
+body:has(#sidebar-container) main .bg-white.border.rounded-2xl,
+body:has(#sidebar-container) main .surface{background:#fff!important;border:1px solid #e2e8f0!important;border-radius:.75rem!important;box-shadow:0 1px 2px rgba(15,23,42,.04)!important;transition:border-color .16s ease,box-shadow .16s ease!important}
+body:has(#sidebar-container) main .rounded-2xl{border-radius:.75rem!important}
+body:has(#sidebar-container) main .rounded-xl{border-radius:.75rem!important}
+body:has(#sidebar-container) main .rounded-lg{border-radius:.5rem!important}
+body:has(#sidebar-container) main .bg-slate-50{background-color:#f8fafc!important}
+body:has(#sidebar-container) main .border-slate-100{border-color:#f1f5f9!important}
+body:has(#sidebar-container) main .border-slate-200{border-color:#e2e8f0!important}
 
-body:has(#sidebar-container) main .bg-slate-50.rounded-xl,
-body:has(#sidebar-container) main .bg-slate-50.rounded-2xl,
-body:has(#sidebar-container) main .rounded-xl.bg-slate-50,
-body:has(#sidebar-container) main .rounded-2xl.bg-slate-50 {
-    border-radius: .625rem !important;
-}
+/* Remove decorative blurred circles/hover-dashboard effects. */
+body:has(#sidebar-container) main .relative.overflow-hidden>.absolute[class*="blur"]{display:none!important}
+body:has(#sidebar-container) main .group:hover{transform:none!important}
+body:has(#sidebar-container) main [class*="hover:shadow"]:hover{box-shadow:0 2px 6px rgba(15,23,42,.06)!important}
 
-body:has(#sidebar-container) main .rounded-2xl {
-    border-radius: .75rem !important;
-}
+/* Typography/metrics */
+body:has(#sidebar-container) main h3[class*="uppercase"]{font-size:.625rem!important;line-height:.9rem!important;font-weight:800!important;letter-spacing:.1em!important;color:#64748b!important}
+body:has(#sidebar-container) main .text-3xl{font-size:1.75rem!important;line-height:2.05rem!important;letter-spacing:-.025em!important}
+body:has(#sidebar-container) main .text-2xl{letter-spacing:-.015em!important}
+body:has(#sidebar-container) main .text-slate-400{color:#94a3b8!important}
+body:has(#sidebar-container) main .text-slate-500{color:#64748b!important}
 
+/* Controls */
 body:has(#sidebar-container) main button,
 body:has(#sidebar-container) main input,
-body:has(#sidebar-container) main select {
-    border-radius: .5rem !important;
+body:has(#sidebar-container) main select,
+body:has(#sidebar-container) main textarea{min-height:40px!important;border-radius:.5rem!important;box-shadow:none!important;transition:border-color .15s ease,background-color .15s ease!important}
+body:has(#sidebar-container) main button:hover{transform:none!important}
+body:has(#sidebar-container) button:focus-visible,
+body:has(#sidebar-container) a:focus-visible,
+body:has(#sidebar-container) input:focus-visible,
+body:has(#sidebar-container) select:focus-visible,
+body:has(#sidebar-container) textarea:focus-visible{outline:2px solid #10b981;outline-offset:2px}
+
+/* Sidebar */
+#sidebar{max-width:100vw;will-change:transform,width;overscroll-behavior:contain;background:#fff!important;border-right:1px solid #e2e8f0!important;box-shadow:0 2px 10px rgba(15,23,42,.07)!important}
+#sidebarNav{overscroll-behavior:contain}
+#sidebarNav a,#sidebarActions a{min-height:42px!important;border-radius:.5rem!important;box-shadow:none!important;font-size:.875rem!important}
+#sidebarNav a[class*="!bg-slate-100"],#sidebarNav a[class*="!bg-emerald-50"]{background:#ecfdf5!important;color:#047857!important;border-left-color:#10b981!important;box-shadow:none!important}
+#sidebarNav a:hover{background:#f0fdf4!important;color:#047857!important}
+#sidebarActions a{box-shadow:none!important}
+
+/* Inverter */
+#inv_summary_cards{gap:16px!important}
+#inv_summary_cards>.bg-white{padding:20px!important}
+#inv_detail_container{gap:20px!important}
+#inv_detail_container>.bg-white{padding:20px!important}
+
+/* VCB / Transformer / Analytics / Home */
+body:has(#vcb_status) main>div[class*="max-w-"],
+body:has(#trafo_status) main>div[class*="max-w-"],
+body:has(#perf_val) main>div[class*="max-w-"],
+body:has(#profileName) main>div[class*="max-w-"]{gap:20px!important}
+body:has(#profileName) #inv_grid{gap:16px!important}
+body:has(#profileName) #powerChart{max-width:100%!important}
+
+/* SLD keeps Vinoba's dark power-flow panel but uses the same outer shell. */
+body:has(#sld_grid) main .bg-slate-900{border-radius:.75rem!important;box-shadow:none!important}
+
+/* Reports = report sheet, not dashboard. */
+body:has(#printableReport) #printableReport,
+body:has(#printable) #printable{background:#fff!important;border:1px solid #e2e8f0!important;border-radius:.75rem!important;box-shadow:0 1px 2px rgba(15,23,42,.04)!important}
+body:has(#printableReport) .report-table th,
+body:has(#printable) table th{background:#f8fafc!important;color:#475569!important;font-size:.65rem!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.05em!important}
+body:has(#printableReport) .report-table td,
+body:has(#printable) table td{font-variant-numeric:tabular-nums}
+
+@media (hover:hover) and (pointer:fine){
+ body:has(#sidebar-container) main .bg-white.rounded-xl:hover,
+ body:has(#sidebar-container) main .bg-white.rounded-2xl:hover,
+ body:has(#sidebar-container) main .surface:hover{transform:none!important;border-color:#cbd5e1!important;box-shadow:0 2px 6px rgba(15,23,42,.06)!important}
 }
 
-body:has(#sidebar-container) main .text-3xl {
-    letter-spacing: -.025em;
+@media (max-width:1023px){
+ body:has(#sidebar-container) main>div[class*="max-w-"],
+ body:has(#sidebar-container) main>section[class*="max-w-"],
+ body:has(#sidebar-container) .dashboard-shell{padding:18px!important;gap:16px!important}
 }
 
-body:has(#sidebar-container) #sidebar {
-    background: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, .08) !important;
+@media (max-width:767px){
+ html{scroll-padding-top:68px}
+ #sidebar{width:min(18rem,88vw)!important}
+ body:has(#sidebar-container) main>header{min-height:58px!important;padding:12px 16px!important;flex-wrap:wrap!important;align-items:center!important}
+ body:has(#sidebar-container) main>header h1,
+ body:has(#sidebar-container) main>header h2{font-size:1.125rem!important;line-height:1.45rem!important}
+ body:has(#sidebar-container) main>div[class*="max-w-"],
+ body:has(#sidebar-container) main>section[class*="max-w-"],
+ body:has(#sidebar-container) .dashboard-shell{padding:16px!important;gap:16px!important}
+ body:has(#sidebar-container) main button,
+ body:has(#sidebar-container) main input,
+ body:has(#sidebar-container) main select,
+ body:has(#sidebar-container) main textarea{min-height:44px!important}
+ input,select,textarea{font-size:16px!important}
+ .ui-table-scroll table,.wrap table,.overflow-x-auto table{min-width:640px}
+ .fixed.inset-0,.ui-modal{align-items:flex-start!important;padding:max(1rem,env(safe-area-inset-top)) 1rem max(1rem,env(safe-area-inset-bottom))!important}
+ .fixed.inset-0>*,.ui-modal>*{width:100%}
+ [style*="height:400px"],[style*="height: 400px"]{max-height:360px}
 }
 
-body:has(#sidebar-container) #sidebarNav a {
-    border-radius: .5rem !important;
+@media (max-width:639px){
+ #plantSelect,#typeSelect,#dateSelect,#monthSelect,#viewBtn{width:100%!important;flex:1 1 100%!important}
+ #printable,#printableReport{padding:16px!important}
+ main .p-8{padding:16px!important}
+ main .gap-8{gap:16px!important}
+ #stringModal .max-w-5xl,#userModal .max-w-md{max-width:100%!important}
 }
 
-body:has(#sidebar-container) #sidebarNav a[class*="!bg-slate-100"] {
-    background: #ecfdf5 !important;
-    color: #047857 !important;
-    box-shadow: none !important;
+@media (max-width:479px){
+ body:has(#sidebar-container) main>div[class*="max-w-"],
+ body:has(#sidebar-container) main>section[class*="max-w-"],
+ body:has(#sidebar-container) .dashboard-shell{padding:12px!important;gap:12px!important}
+ #inv_summary_cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+ #inv_summary_cards>.bg-white{padding:16px!important}
+ #inv_summary_cards .text-3xl{font-size:1.45rem!important;line-height:1.8rem!important}
+ .ui-table-scroll table,.wrap table,.overflow-x-auto table{min-width:600px}
 }
 
-body:has(#sidebar-container) #sidebarActions a {
-    border-radius: .5rem !important;
-}
+@media (min-width:768px){#sidebar{transform:translateX(0)!important;visibility:visible!important;opacity:1!important}}
 
-/* Home page: tone down the newer dashboard treatment to Vinoba's
-   compact operational-card layout without touching live-data IDs. */
-body:has(#profileName) .surface {
-    border-radius: .75rem !important;
-}
-
-body:has(#profileName) .kpi-card {
-    min-height: 0 !important;
-    padding: 1.25rem !important;
-}
-
-body:has(#profileName) .kpi-icon {
-    display: none !important;
-}
-
-body:has(#profileName) .kpi-card > .flex:first-child {
-    justify-content: flex-end !important;
-    min-height: 0 !important;
-}
-
-body:has(#profileName) .kpi-card .mini-label {
-    margin-top: 0 !important;
-}
-
-body:has(#profileName) section:has(#profileName) {
-    padding: 1.25rem !important;
-}
-
-body:has(#profileName) section:has(#profileName) > div > div:last-child {
-    display: none !important;
-}
-
-body:has(#profileName) section:has(#powerChart) {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 1rem !important;
-}
-
-body:has(#profileName) section:has(#powerChart) > div {
-    width: 100% !important;
-}
-
-body:has(#profileName) section:has(#powerChart) > div:last-child {
-    order: -1;
-}
-
-body:has(#profileName) #connectionBadge {
-    border-radius: .5rem !important;
-}
-
-body:has(#profileName) #liveStatus,
-body:has(#profileName) #sourceBadge,
-body:has(#profileName) #powerLivePill,
-body:has(#profileName) #inverterHealthPill,
-body:has(#profileName) #htAvailability {
-    border-radius: 9999px !important;
-}
-
-/* Reports stays a document/report sheet, not a KPI dashboard. */
-body:has(#printableReport) .report-table th {
-    background: #f8fafc !important;
-    color: #475569 !important;
-}
-
-body:has(#printableReport) #printableReport {
-    border-radius: .75rem !important;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    body:has(#sidebar-container) main .bg-white.rounded-xl:hover,
-    body:has(#sidebar-container) main .bg-white.rounded-2xl:hover,
-    body:has(#sidebar-container) .surface:hover {
-        transform: none !important;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, .06) !important;
-    }
-
-    body:has(#sidebar-container) button:not(:disabled):hover {
-        transform: none !important;
-    }
-}
-
-@media (max-width: 1023px) {
-    .ui-page,
-    main > div[class*="p-4"],
-    main > div[class*="p-6"],
-    main > section[class*="p-4"],
-    main > section[class*="p-6"] { gap: 1rem !important; }
-
-    .ui-app-header,
-    main > header,
-    body > nav { min-height: 60px; }
-}
-
-@media (max-width: 767px) {
-    html { scroll-padding-top: 72px; }
-    #sidebar { width: min(18rem, 88vw) !important; }
-
-    .ui-app-header,
-    main > header,
-    body > nav {
-        min-height: 58px;
-        padding: .875rem 1rem !important;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .ui-app-header > *,
-    main > header > *,
-    body > nav > * { min-width: 0; }
-
-    .ui-page,
-    main > div[class*="p-4"],
-    main > div[class*="p-6"],
-    main > section[class*="p-4"],
-    main > section[class*="p-6"] {
-        padding: 1rem !important;
-        gap: 1rem !important;
-    }
-
-    .ui-control,
-    button,
-    input,
-    select,
-    textarea { min-height: 44px; }
-
-    input,
-    select,
-    textarea { font-size: 16px; }
-
-    .ui-table-scroll table,
-    .wrap table,
-    .overflow-x-auto table { min-width: 640px; }
-
-    .ui-modal,
-    .fixed.inset-0 {
-        align-items: flex-start !important;
-        padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom)) !important;
-    }
-
-    .ui-modal > *,
-    .fixed.inset-0 > * { width: 100%; }
-
-    [style*="height:400px"],
-    [style*="height: 400px"] { max-height: 360px; }
-}
-
-@media (max-width: 639px) {
-    #plantSelect,
-    #typeSelect,
-    #dateSelect,
-    #monthSelect,
-    #viewBtn {
-        width: 100%;
-        flex: 1 1 100%;
-    }
-
-    #printable { padding: 1rem !important; }
-    main .p-8 { padding: 1rem !important; }
-    main .gap-8 { gap: 1rem !important; }
-
-    #stringModal .max-w-5xl,
-    #userModal .max-w-md { max-width: 100%; }
-}
-
-@media (max-width: 479px) {
-    .ui-page,
-    main > div[class*="p-4"],
-    main > div[class*="p-6"],
-    main > section[class*="p-4"],
-    main > section[class*="p-6"] {
-        padding: .75rem !important;
-        gap: .75rem !important;
-    }
-
-    .ui-app-header,
-    main > header,
-    body > nav { padding: .75rem !important; }
-
-    .ui-app-header h1,
-    .ui-app-header h2,
-    main > header h1,
-    main > header h2,
-    body > nav h1,
-    body > nav h2 {
-        font-size: 1.125rem !important;
-        line-height: 1.4 !important;
-    }
-
-    #inv_summary_cards {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: .75rem !important;
-    }
-
-    #inv_summary_cards .ui-surface,
-    #inv_summary_cards .bg-white.rounded-xl { padding: 1rem !important; }
-    #inv_summary_cards .text-3xl { font-size: 1.5rem !important; line-height: 2rem !important; }
-
-    .ui-table-scroll table,
-    .wrap table,
-    .overflow-x-auto table { min-width: 600px; }
-}
-
-@media (min-width: 768px) {
-    /* sidebar.html is injected dynamically. Do not rely on Tailwind CDN to
-       generate md:translate-x-0 after the initial page scan. */
-    #sidebar {
-        transform: translateX(0) !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-}
-
-@media (min-width: 1280px) {
-    .ui-page,
-    main > div[class*="p-4"],
-    main > div[class*="p-6"],
-    main > section[class*="p-4"],
-    main > section[class*="p-6"] {
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    *, *::before, *::after {
-        animation-duration: .01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: .01ms !important;
-        scroll-behavior: auto !important;
-    }
-}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
