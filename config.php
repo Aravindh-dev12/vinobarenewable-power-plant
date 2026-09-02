@@ -1,23 +1,32 @@
 <?php
-$host = getenv('SCADA_DB_HOST') ?: 'localhost';
-$username = getenv('SCADA_DB_USER') ?: 'root';
-$password = getenv('SCADA_DB_PASSWORD') ?: '';
-$dbname = getenv('SCADA_DB_NAME') ?: 'vinoba-renewbale';
-
-// Both SCADA plants (vinoba-1 and ssv) use this one shared database.
-// Every telemetry table stores both plants together and separates rows by plant_id.
-$conn = new mysqli($host, $username, $password, $dbname);
-
-if (!$conn->connect_error) {
-    $conn->set_charset('utf8mb4');
+// Database secrets must stay on the server, not in GitHub.
+// Priority: environment variables -> config.local.php -> safe defaults.
+$localConfig = [];
+$localConfigPath = __DIR__ . '/config.local.php';
+if (is_file($localConfigPath)) {
+    $loaded = require $localConfigPath;
+    if (is_array($loaded)) $localConfig = $loaded;
 }
 
-if ($conn->connect_error) {
-    $isApi = !empty($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'json') !== false;
-    if ($isApi || (defined('JSON_RESPONSE') && JSON_RESPONSE)) {
-        header('Content-Type: application/json');
-        die(json_encode(['status' => 'error', 'message' => 'DB connection failed']));
-    }
-    $dbError = 'Database connection failed. Expected shared database: ' . $dbname;
+$envHost = getenv('SCADA_DB_HOST');
+$envUser = getenv('SCADA_DB_USER');
+$envPassword = getenv('SCADA_DB_PASSWORD');
+$envName = getenv('SCADA_DB_NAME');
+
+$host = ($envHost !== false && $envHost !== '') ? $envHost : (string)($localConfig['host'] ?? 'localhost');
+$username = ($envUser !== false && $envUser !== '') ? $envUser : (string)($localConfig['username'] ?? 'root');
+$password = ($envPassword !== false) ? $envPassword : (string)($localConfig['password'] ?? '');
+$dbname = ($envName !== false && $envName !== '') ? $envName : (string)($localConfig['dbname'] ?? 'vinoba-renewbale');
+
+$conn = null;
+$dbError = null;
+
+try {
+    $conn = new mysqli($host, $username, $password, $dbname);
+    $conn->set_charset('utf8mb4');
+} catch (Throwable $e) {
+    $dbError = 'Database connection failed for shared database: ' . $dbname;
+    error_log('[config] MySQL connection failed: ' . $e->getMessage());
+    $conn = null;
 }
 ?>
