@@ -3,25 +3,87 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/plant_config.php';
 header('Content-Type: text/plain; charset=utf-8');
 
-$queries = [
+if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
+    http_response_code(500);
+    exit("Database connection failed.\n");
+}
+
+$conn->query("CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'user',
+    plant_id VARCHAR(50) DEFAULT '',
+    auth_token VARCHAR(128) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_users_plant (plant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+foreach ([
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS plant_id VARCHAR(50) DEFAULT ''",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_token VARCHAR(128) DEFAULT NULL",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'"
+] as $sql) {
+    $conn->query($sql);
+}
+
+$catalog = plant_catalog();
+$plantStmt = $conn->prepare("INSERT INTO plants (id,name,service_number,capacity,location,theme)
+    VALUES (?,?,?,?,?,?)
+    ON DUPLICATE KEY UPDATE name=VALUES(name),service_number=VALUES(service_number),capacity=VALUES(capacity),location=VALUES(location),theme=VALUES(theme)");
+if ($plantStmt) {
+    foreach ($catalog as $p) {
+        $id = $p['id'];
+        $name = $p['name'];
+        $service = $p['service_number'];
+        $capacity = (float)$p['capacity'];
+        $location = $p['location'];
+        $theme = $id === 'vinoba-1' ? 'violet' : 'emerald';
+        $plantStmt->bind_param('sssdss', $id, $name, $service, $capacity, $location, $theme);
+        $plantStmt->execute();
+    }
+    $plantStmt->close();
+}
+
+$users = [
+    ['vinobarenew@scada.com', 'vinoba@123', 'user', 'vinoba-1'],
+    ['ssvgreen@scada.com', 'ssv@123', 'user', 'ssv'],
 ];
-foreach ($queries as $q) {
-    try { $conn->query($q); echo "OK: $q\n"; }
-    catch (Throwable $e) { echo "SKIP: " . $e->getMessage() . "\n"; }
+
+$find = $conn->prepare('SELECT id FROM users WHERE email=? LIMIT 1');
+$update = $conn->prepare('UPDATE users SET password=?, role=?, plant_id=?, auth_token=NULL WHERE id=?');
+$insert = $conn->prepare('INSERT INTO users (email,password,role,plant_id) VALUES (?,?,?,?)');
+
+foreach ($users as [$email, $plainPassword, $role, $plantId]) {
+    $hash = password_hash($plainPassword, PASSWORD_DEFAULT);
+
+    $find->bind_param('s', $email);
+    $find->execute();
+    $find->store_result();
+    $existingId = null;
+    if ($find->num_rows > 0) {
+        $find->bind_result($existingId);
+        $find->fetch();
+    }
+    $find->free_result();
+
+    if ($existingId !== null) {
+        $id = (int)$existingId;
+        $update->bind_param('sssi', $hash, $role, $plantId, $id);
+        $update->execute();
+        echo "Updated: {$email}\n";
+    } else {
+        $insert->bind_param('ssss', $email, $hash, $role, $plantId);
+        $insert->execute();
+        echo "Inserted: {$email}\n";
+    }
 }
 
-// Remove assignments that are not one of the two current SCADA plants.
-$validIds = array_keys(plant_catalog());
-$quoted = array_map(fn($v) => "'" . $conn->real_escape_string($v) . "'", $validIds);
-$conn->query("UPDATE users SET plant_id='' WHERE role<>'admin' AND plant_id<>'' AND plant_id NOT IN (" . implode(',', $quoted) . ")");
-echo "Cleared non-current plant assignments: " . $conn->affected_rows . "\n";
+$find->close();
+$update->close();
+$insert->close();
 
-echo "\nCurrent plants:\n";
-foreach (plant_catalog() as $p) {
-    echo "- {$p['id']} | {$p['name']} | Service Number {$p['service_number']}\n";
-}
-echo "\nDone. Assign every site user to vinoba-1 or ssv from the Admin page/database.\n";
+echo "\nLogin users are ready in shared database.\n";
+echo "Vinoba: vinobarenew@scada.com / vinoba@123\n";
+echo "SSV:    ssvgreen@scada.com / ssv@123\n";
 ?>
