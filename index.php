@@ -13,20 +13,39 @@
         html, body { min-height: 100%; }
         body {
             font-family: 'Inter', sans-serif;
-            background-image: linear-gradient(rgba(15, 23, 42, 0.42), rgba(15, 23, 42, 0.42)), url('./assets/login-background.png?v=2');
-            background-size: cover;
-            background-position: center center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
             background-color: #0f172a;
         }
-        .login-panel { position: relative; z-index: 1; }
-        @media (max-width: 767px) {
-            body { background-attachment: scroll; background-position: center center; }
+        .login-bg {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            z-index: -2;
+            user-select: none;
+            pointer-events: none;
         }
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.42);
+            z-index: -1;
+            pointer-events: none;
+        }
+        .login-panel { position: relative; z-index: 1; }
     </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen flex items-center justify-center px-4 py-6 sm:py-10">
+
+    <img
+        class="login-bg"
+        src="https://raw.githubusercontent.com/Aravindh-dev12/vinobarenewable-power-plant/main/assets/login-background.png?v=4"
+        alt=""
+        aria-hidden="true"
+        onerror="this.onerror=null;this.src='./assets/login-background.png?v=4';"
+    >
+    <div class="login-overlay" aria-hidden="true"></div>
 
     <div class="login-panel bg-white p-5 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm">
         <div class="text-center mb-6">
