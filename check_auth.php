@@ -1,13 +1,17 @@
 <?php
-$token = isset($_GET['token']) ? $_GET['token'] : '';
-$user = null;
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/plant_config.php';
 
-if ($token) {
-    require 'config.php';
-    $safeToken = $conn->real_escape_string($token);
-    $res = $conn->query("SELECT * FROM users WHERE auth_token = '$safeToken' LIMIT 1");
-    if ($res && $res->num_rows > 0) {
-        $user = $res->fetch_assoc();
+$token = isset($_GET['token']) ? trim((string)$_GET['token']) : '';
+$user = null;
+if ($token !== '') {
+    $stmt = $conn->prepare('SELECT * FROM users WHERE auth_token = ? LIMIT 1');
+    if ($stmt) {
+        $stmt->bind_param('s', $token);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res && $res->num_rows) $user = $res->fetch_assoc();
+        $stmt->close();
     }
 }
 
@@ -16,19 +20,38 @@ if (!$user) {
     exit;
 }
 
-$currentPlant = isset($_GET['plant']) ? $_GET['plant'] : '';
-// Only non-admin users are restricted to their assigned plant
-if ($user['role'] !== 'admin' && !empty($user['plant_id'])) {
-    if (empty($currentPlant)) {
+migrate_user_plant_alias($conn, $user);
+$currentPage = basename($_SERVER['PHP_SELF'] ?? 'home.php');
+$rawPlant = isset($_GET['plant']) ? trim((string)$_GET['plant']) : '';
+$currentPlant = $rawPlant === 'all' ? 'all' : normalize_plant_id($rawPlant);
+
+if ($rawPlant !== '' && $rawPlant !== 'all' && $currentPlant !== $rawPlant && is_valid_plant_id($currentPlant)) {
+    $query = $_GET;
+    $query['plant'] = $currentPlant;
+    header('Location: ' . $currentPage . '?' . http_build_query($query));
+    exit;
+}
+
+if (($user['role'] ?? 'user') !== 'admin') {
+    $assigned = normalize_plant_id($user['plant_id'] ?? '');
+    if (!is_valid_plant_id($assigned)) $assigned = 'vinoba-1';
+    $user['plant_id'] = $assigned;
+
+    if ($currentPlant === '' || $currentPlant === 'all') {
         $query = $_GET;
-        $query['plant'] = $user['plant_id'];
-        $currentPage = basename($_SERVER['PHP_SELF']);
+        $query['plant'] = $assigned;
         header('Location: ' . $currentPage . '?' . http_build_query($query));
         exit;
     }
-    if ($currentPlant !== $user['plant_id']) {
-        $redirect = 'home.php?plant=' . urlencode($user['plant_id']) . '&token=' . urlencode($token);
-        header('Location: ' . $redirect);
+    if ($currentPlant !== $assigned) {
+        header('Location: home.php?plant=' . urlencode($assigned) . '&token=' . urlencode($token));
+        exit;
+    }
+} else {
+    if ($currentPlant === '' && $currentPage !== 'admin.php') {
+        $query = $_GET;
+        $query['plant'] = 'vinoba-1';
+        header('Location: ' . $currentPage . '?' . http_build_query($query));
         exit;
     }
 }
