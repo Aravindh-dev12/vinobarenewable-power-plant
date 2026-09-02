@@ -172,6 +172,24 @@ main .grid > * { min-width: 0; }
     [style*="height: 400px"] { max-height: 360px; }
 }
 
+@media (max-width: 639px) {
+    #plantSelect,
+    #typeSelect,
+    #dateSelect,
+    #monthSelect,
+    #viewBtn {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    #printable { padding: 1rem !important; }
+    main .p-8 { padding: 1rem !important; }
+    main .gap-8 { gap: 1rem !important; }
+
+    #stringModal .max-w-5xl,
+    #userModal .max-w-md { max-width: 100%; }
+}
+
 @media (max-width: 479px) {
     .ui-page,
     main > div[class*="p-4"],
