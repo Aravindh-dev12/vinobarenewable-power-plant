@@ -70,7 +70,7 @@ try {
         if(!filter_var($email,FILTER_VALIDATE_EMAIL))sendJson(422,['status'=>'error','message'=>'Enter a valid email address.']);
         if(strlen($password)<8)sendJson(422,['status'=>'error','message'=>'Password must contain at least 8 characters.']);
         if(!in_array($role,['admin','user'],true))sendJson(422,['status'=>'error','message'=>'Invalid user role.']);
-        if($role!=='admin'&&!is_valid_plant_id($plant))sendJson(422,['status'=>'error','message'=>'Plant must be vinoba-1 or ssv.']);
+        if($role!=='admin'&&!is_valid_plant_id($plant))sendJson(422,['status'=>'error','message'=>'Select a valid plant.']);
         if($role==='admin'&&!is_valid_plant_id($plant))$plant='';
         $cs=$conn->prepare('SELECT id FROM users WHERE email=? LIMIT 1');$cs->bind_param('s',$email);$cs->execute();$cr=$cs->get_result();if($cr&&$cr->num_rows){$cs->close();sendJson(409,['status'=>'error','message'=>'An account with this email already exists.']);}$cs->close();
         $hash=password_hash($password,PASSWORD_DEFAULT);$ins=$conn->prepare('INSERT INTO users (email,password,role,plant_id) VALUES (?,?,?,?)');$ins->bind_param('ssss',$email,$hash,$role,$plant);$ins->execute();$ins->close();
