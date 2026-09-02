@@ -2,6 +2,12 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/plant_config.php';
 
+if (!isset($conn) || !($conn instanceof mysqli)) {
+    http_response_code(503);
+    echo '<!doctype html><html><body style="font-family:Arial,sans-serif;padding:24px"><h2>Dashboard temporarily unavailable</h2><p>Database connection is not configured on this server.</p></body></html>';
+    exit;
+}
+
 $token = isset($_GET['token']) ? trim((string)$_GET['token']) : '';
 $user = null;
 
@@ -49,7 +55,6 @@ if (!$isAdmin) {
         exit;
     }
 } else {
-    // Admin dashboard itself represents both plants and does not need a plant query.
     if ($currentPage !== 'admin.php' && $currentPlant === '') {
         $query = $_GET;
         $query['plant'] = 'vinoba-1';
@@ -57,8 +62,6 @@ if (!$isAdmin) {
         exit;
     }
 
-    // "all" is only valid for the Reports screen. Every live plant page must use
-    // exactly one canonical SCADA unit id: vinoba-1 or ssv.
     if ($currentPlant === 'all' && !$allowAllPlants) {
         $query = $_GET;
         $query['plant'] = 'vinoba-1';
