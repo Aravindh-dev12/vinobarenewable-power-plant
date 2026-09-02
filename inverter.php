@@ -7,7 +7,7 @@
     <title id="pageTitle">Solar Plant - Inverter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar-control.js?v=3" defer></script>
+    <script src="sidebar-control.js?v=4" defer></script>
     <style>
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #f8fafc; }
@@ -64,7 +64,6 @@
         </main>
     </div>
 
-    <!-- String Detail Modal -->
     <div id="stringModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
             <div class="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
@@ -81,32 +80,26 @@
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const currentPlant = urlParams.get('plant') || 'vinoba-velliyanai';
+        const currentPlant = urlParams.get('plant') || 'vinoba-1';
         const authToken = urlParams.get('token') || sessionStorage.getItem('vs_token') || '';
-        const plantNames = { 'vinoba-velliyanai': 'Vinoba Velliyanai', 'makkalpower': 'Makkal Power', 'anushyam': 'Anushyam Plant' };
+        const plantNames = {
+            'vinoba-1': 'Vinoba Renewable Energy Private Limited',
+            'ssv': 'SSV Green Power Private Limited'
+        };
         document.getElementById('pageTitle').textContent = (plantNames[currentPlant] || currentPlant) + ' - Inverter';
         setInterval(() => { document.getElementById('clockDisplay').innerText = new Date().toLocaleTimeString('en-IN', {hour12: false}); }, 1000);
         fetch('sidebar.html', { cache: 'no-store' }).then(r => r.text()).then(html => {
             document.getElementById('sidebar-container').innerHTML = html;
-
-            // Append token to sidebar nav links
             const _token = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('vs_token') || '';
-            let _plant = new URLSearchParams(window.location.search).get('plant') || '';
-            if (!_plant) { try { const _u = JSON.parse(sessionStorage.getItem('vs_user')||'{}'); _plant = _u.plant_id || 'vinoba-velliyanai'; } catch(e) { _plant = 'vinoba-velliyanai'; } }
+            let _plant = new URLSearchParams(window.location.search).get('plant') || currentPlant || 'vinoba-1';
             document.querySelectorAll('#sidebarNav a').forEach(link => {
                 let href = link.getAttribute('href');
                 if (!href || href.indexOf('logout') !== -1) return;
-                if (href.indexOf('?plant=') === -1) {
-                    link.setAttribute('href', href + '?plant=' + encodeURIComponent(_plant) + '&token=' + encodeURIComponent(_token));
-                } else if (href.indexOf('token=') === -1) {
-                    link.setAttribute('href', href + '&token=' + encodeURIComponent(_token));
-                }
+                if (href.indexOf('?plant=') === -1) link.setAttribute('href', href + '?plant=' + encodeURIComponent(_plant) + '&token=' + encodeURIComponent(_token));
+                else if (href.indexOf('token=') === -1) link.setAttribute('href', href + '&token=' + encodeURIComponent(_token));
             });
             const _pn = document.getElementById('sidebarPlantName');
-            if (_pn) {
-                const _names = {'vinoba-velliyanai':'Vinoba Velliyanai','makkalpower':'Makkal Power','anushyam':'Anushyam Plant'};
-                _pn.textContent = _names[_plant] || _plant;
-            }
+            if (_pn) _pn.textContent = plantNames[_plant] || _plant;
             if (typeof initSidebar === 'function') initSidebar();
             const curPage = window.location.pathname.split('/').pop() || 'home.php';
             document.querySelectorAll('#sidebarNav a').forEach(link => {
@@ -132,7 +125,6 @@
             ws.onmessage = function(e) {
                 try {
                     const d = JSON.parse(e.data); if (d.unit_id !== currentPlant) return;
-                    // Explicitly skip VCB messages
                     const taskStr = d.task ? d.task.toString().toLowerCase() : '';
                     const deviceStr = d.device ? d.device.toString().toLowerCase() : '';
                     if (taskStr === 'vcb' || deviceStr.includes('vcb')) return;
@@ -145,9 +137,6 @@
                         const hasNumberedCurrents = keys.some(k => /\d/.test(k) && /curr|current|amp/i.test(k) && !/phase|3.phase|reactive|apparent|freq|temp/i.test(k.toLowerCase()));
                         const isInv = (taskStr === 'inverter') || hasInvPower || hasNumberedCurrents;
                         if (!isInv) return;
-                        console.log('=== INV MSG === device:', d.device, 'task:', d.task, 'keys:', keys);
-
-                        // Pair-based detection: find all numbered current keys and pair with matching numbered voltage keys
                         const usedKeys = new Set();
                         const byNum = {};
                         for (const k of keys) {
@@ -161,23 +150,15 @@
                         let activeStr = 0, totalStr = 0;
                         for (const n in byNum) {
                             const group = byNum[n];
-                            // Find current key in this group
                             let currKey = '', voltKey = '';
                             for (const k of group) {
                                 const kl = k.toLowerCase();
                                 if (usedKeys.has(k)) continue;
-                                // Skip phase and inverter-level keys
                                 if (/phase|phasa|ph_|r.phase|y.phase|b.phase|a.phase|c.phase|3.phase|three.phase/i.test(kl)) continue;
                                 if (/inverter.*curr|inv.*curr|total.*curr|grid.*curr|load.*curr|reactive.*curr|mppt.*curr|dc.*curr/i.test(kl)) continue;
                                 if (/freq|temperature|temp|ambient|cosphi|pf.*_/i.test(kl)) continue;
-                                // Identify current key
-                                if (!currKey && /\b(curr|current|amp|i)\b/i.test(kl) && !/\b(volt|voltage|temp|freq)\b/i.test(kl)) {
-                                    currKey = k;
-                                }
-                                // Identify voltage key
-                                if (!voltKey && /\b(volt|voltage|v)\b/i.test(kl) && !/\b(curr|current|amp|i)\b/i.test(kl)) {
-                                    voltKey = k;
-                                }
+                                if (!currKey && /\b(curr|current|amp|i)\b/i.test(kl) && !/\b(volt|voltage|temp|freq)\b/i.test(kl)) currKey = k;
+                                if (!voltKey && /\b(volt|voltage|v)\b/i.test(kl) && !/\b(curr|current|amp|i)\b/i.test(kl)) voltKey = k;
                             }
                             if (currKey) {
                                 usedKeys.add(currKey);
@@ -187,7 +168,6 @@
                                 strings.push({ n: parseInt(n), curr, volt, active: curr > 0.5 });
                                 totalStr++;
                                 if (curr > 0.5) activeStr++;
-                                console.log('  FOUND string', n, 'currKey:', currKey, '=', curr, 'voltKey:', voltKey || 'none', '=', volt);
                             }
                         }
                         strings.sort((x,y) => x.n - y.n);
@@ -221,7 +201,6 @@
                             totalHrs: parseFloat(d.values["total working hours"]) || invData[devName].totalHrs || 0,
                             activeStr, totalStr, strings
                         });
-                        console.log('=== STORED', devName, 'strings:', strings.length, 'active:', activeStr, 'total:', totalStr);
                         renderAll();
                     }
                 } catch(err) { console.error(err); }
@@ -230,7 +209,6 @@
         }
         function openStringModal(invName) {
             const inv = invData[invName];
-            console.log('openStringModal:', invName, 'inv:', inv, 'strings:', inv ? inv.strings : 'none');
             if (!inv) return;
             document.getElementById('stringModalTitle').textContent = invName + ' - String Details';
             const grid = document.getElementById('stringGrid');
@@ -248,12 +226,8 @@
             }
             document.getElementById('stringModal').classList.remove('hidden');
         }
-        function closeStringModal() {
-            document.getElementById('stringModal').classList.add('hidden');
-        }
-        document.getElementById('stringModal').addEventListener('click', function(e) {
-            if (e.target === this) closeStringModal();
-        });
+        function closeStringModal() { document.getElementById('stringModal').classList.add('hidden'); }
+        document.getElementById('stringModal').addEventListener('click', function(e) { if (e.target === this) closeStringModal(); });
         function renderAll() {
             const keys = Object.keys(invData).sort((a,b) => (parseInt(a.replace(/\D/g,''))||0) - (parseInt(b.replace(/\D/g,''))||0));
             if (!keys.length) return;
@@ -271,9 +245,7 @@
                     <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
                         <h3 class="text-sm font-black text-slate-600 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-server text-blue-500"></i> ${k}</h3>
                         <div class="flex items-center gap-2">
-                            <button onclick="openStringModal('${k}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
-                                <i class="fa-solid fa-eye"></i> View Strings
-                            </button>
+                            <button onclick="openStringModal('${k}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"><i class="fa-solid fa-eye"></i> View Strings</button>
                             <span class="rounded-full ${v.power > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'} px-3 py-1 text-xs font-bold">${v.power > 0 ? 'Online' : 'Offline'}</span>
                         </div>
                     </div>
