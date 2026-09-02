@@ -75,6 +75,66 @@ function readFrame($socket, float $deadline): ?array {
     return ['opcode' => $opcode, 'payload' => $payload];
 }
 
+function openWebSocketTarget(array $target): ?array {
+    $host = (string)$target['host'];
+    $port = (int)$target['port'];
+    $transport = (string)$target['transport'];
+    $hostHeader = (string)($target['host_header'] ?? ($host . ':' . $port));
+    $path = (string)($target['path'] ?? '/');
+    $context = null;
+
+    if ($transport === 'tls') {
+        $context = stream_context_create([
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+                'peer_name' => $host,
+                'SNI_enabled' => true,
+                'allow_self_signed' => false,
+            ],
+        ]);
+    }
+
+    $errno = 0;
+    $errstr = '';
+    $remote = $transport . '://' . $host . ':' . $port;
+    $socket = @stream_socket_client(
+        $remote,
+        $errno,
+        $errstr,
+        1.8,
+        STREAM_CLIENT_CONNECT,
+        $context
+    );
+    if (!$socket) return null;
+
+    stream_set_timeout($socket, 2);
+    $key = base64_encode(random_bytes(16));
+    $request = "GET {$path} HTTP/1.1\r\n"
+        . "Host: {$hostHeader}\r\n"
+        . "Upgrade: websocket\r\n"
+        . "Connection: Upgrade\r\n"
+        . "Sec-WebSocket-Key: {$key}\r\n"
+        . "Sec-WebSocket-Version: 13\r\n"
+        . "\r\n";
+    @fwrite($socket, $request);
+
+    $response = '';
+    $handshakeDeadline = microtime(true) + 1.8;
+    while (microtime(true) < $handshakeDeadline) {
+        $line = @fgets($socket);
+        if ($line === false) { usleep(1000); continue; }
+        $response .= $line;
+        if ($line === "\r\n") break;
+    }
+    if (strpos($response, ' 101 ') === false) {
+        @fclose($socket);
+        return null;
+    }
+
+    return [$socket, (string)$target['source']];
+}
+
 if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
     liveJson(500, ['success' => false, 'message' => 'Database unavailable']);
 }
@@ -99,43 +159,56 @@ if ($role === 'admin') {
 }
 if (!is_valid_plant_id($plant)) liveJson(403, ['success' => false, 'message' => 'Plant access unavailable']);
 
-$configuredHost = trim((string)(getenv('SCADA_WS_HOST') ?: ''));
-$port = (int)(getenv('SCADA_WS_PORT') ?: 5000);
-$hosts = array_values(array_unique(array_filter([$configuredHost, '127.0.0.1', '161.97.87.75'])));
-$socket = null;
-$connectedHost = '';
+/*
+ * Use the exact production WebSocket endpoint that browser pages use first.
+ * Internal/direct targets are only fallbacks for installations where PHP cannot
+ * resolve or establish TLS to the public reverse-proxy endpoint.
+ */
+$targets = [
+    [
+        'transport' => 'tls',
+        'host' => 'vinobasolar.scadahub.in',
+        'port' => 5001,
+        'path' => '/',
+        'host_header' => 'vinobasolar.scadahub.in:5001',
+        'source' => 'wss://vinobasolar.scadahub.in:5001',
+    ],
+];
 
-foreach ($hosts as $host) {
-    $errno = 0; $errstr = '';
-    $candidate = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, 1.5, STREAM_CLIENT_CONNECT);
-    if ($candidate) { $socket = $candidate; $connectedHost = $host; break; }
+$configuredHost = trim((string)(getenv('SCADA_WS_HOST') ?: ''));
+$configuredPort = (int)(getenv('SCADA_WS_PORT') ?: 5000);
+if ($configuredHost !== '') {
+    $targets[] = [
+        'transport' => 'tcp',
+        'host' => $configuredHost,
+        'port' => $configuredPort,
+        'path' => '/',
+        'source' => 'ws://' . $configuredHost . ':' . $configuredPort,
+    ];
+}
+$targets[] = ['transport' => 'tcp', 'host' => '127.0.0.1', 'port' => 5000, 'path' => '/', 'source' => 'ws://127.0.0.1:5000'];
+$targets[] = ['transport' => 'tcp', 'host' => '161.97.87.75', 'port' => 5000, 'path' => '/', 'source' => 'ws://161.97.87.75:5000'];
+
+$socket = null;
+$source = '';
+foreach ($targets as $target) {
+    $opened = openWebSocketTarget($target);
+    if ($opened !== null) {
+        [$socket, $source] = $opened;
+        break;
+    }
 }
 if (!$socket) liveJson(503, ['success' => false, 'message' => 'Live SCADA source unavailable', 'messages' => []]);
-
-stream_set_timeout($socket, 2);
-$key = base64_encode(random_bytes(16));
-$request = "GET / HTTP/1.1\r\nHost: {$connectedHost}:{$port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {$key}\r\nSec-WebSocket-Version: 13\r\n\r\n";
-@fwrite($socket, $request);
-$response = '';
-$handshakeDeadline = microtime(true) + 1.5;
-while (microtime(true) < $handshakeDeadline) {
-    $line = @fgets($socket);
-    if ($line === false) { usleep(1000); continue; }
-    $response .= $line;
-    if ($line === "\r\n") break;
-}
-if (strpos($response, ' 101 ') === false) {
-    @fclose($socket);
-    liveJson(503, ['success' => false, 'message' => 'Live SCADA handshake failed', 'messages' => []]);
-}
 
 sendTextFrame($socket, json_encode(['type' => 'subscribe', 'unit_id' => $plant], JSON_UNESCAPED_SLASHES));
 stream_set_blocking($socket, false);
 $messages = [];
-$deadline = microtime(true) + 1.4;
+$deadline = microtime(true) + 1.8;
 
-while (microtime(true) < $deadline && count($messages) < 40) {
-    $read = [$socket]; $write = null; $except = null;
+while (microtime(true) < $deadline && count($messages) < 50) {
+    $read = [$socket];
+    $write = null;
+    $except = null;
     $remaining = max(0, $deadline - microtime(true));
     $sec = (int)$remaining;
     $usec = (int)(($remaining - $sec) * 1000000);
@@ -156,5 +229,6 @@ liveJson(200, [
     'success' => true,
     'messages' => $messages,
     'received' => count($messages),
-    'source' => 'backend-live'
+    'plant_id' => $plant,
+    'source' => $source,
 ]);
