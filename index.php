@@ -10,12 +10,28 @@
     <script src="dashboard-ui.js?v=1" defer data-dashboard-ui></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        html, body { min-height: 100%; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-image: url('assets/login-background.png?v=1');
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-color: #0f172a;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.42);
+            pointer-events: none;
+        }
+        .login-panel { position: relative; z-index: 1; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 px-4 py-6 sm:py-10">
+<body class="text-slate-800 antialiased min-h-screen flex items-center justify-center px-4 py-6 sm:py-10">
 
-    <div class="bg-white p-5 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm">
+    <div class="login-panel bg-white p-5 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm">
         <div class="text-center mb-6">
             <div class="w-12 h-12 bg-blue-600 text-white rounded-xl mx-auto flex items-center justify-center text-xl shadow-lg mb-3">
                 <i class="fa-solid fa-solar-panel"></i>
