@@ -13,20 +13,15 @@ foreach ($queries as $q) {
     catch (Throwable $e) { echo "SKIP: " . $e->getMessage() . "\n"; }
 }
 
-$migrations = [
-    ['vinoba-1', ['vinoba-velliyanai', 'vinoba']],
-    ['ssv', ['makkalpower', 'makkal-power', 'anushyam']]
-];
-foreach ($migrations as [$newId, $oldIds]) {
-    $quoted = array_map(fn($v) => "'" . $conn->real_escape_string($v) . "'", $oldIds);
-    $sql = "UPDATE users SET plant_id='" . $conn->real_escape_string($newId) . "' WHERE plant_id IN (" . implode(',', $quoted) . ")";
-    $conn->query($sql);
-    echo "Migrated users to $newId: " . $conn->affected_rows . "\n";
-}
+// Remove assignments that are not one of the two current SCADA plants.
+$validIds = array_keys(plant_catalog());
+$quoted = array_map(fn($v) => "'" . $conn->real_escape_string($v) . "'", $validIds);
+$conn->query("UPDATE users SET plant_id='' WHERE role<>'admin' AND plant_id<>'' AND plant_id NOT IN (" . implode(',', $quoted) . ")");
+echo "Cleared non-current plant assignments: " . $conn->affected_rows . "\n";
 
-echo "\nCanonical plants:\n";
+echo "\nCurrent plants:\n";
 foreach (plant_catalog() as $p) {
     echo "- {$p['id']} | {$p['name']} | Service Number {$p['service_number']}\n";
 }
-echo "\nDone. Existing telemetry rows are not rewritten; new SCADA data is stored under vinoba-1 and ssv.\n";
+echo "\nDone. Assign every site user to vinoba-1 or ssv from the Admin page/database.\n";
 ?>
