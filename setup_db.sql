@@ -1,6 +1,6 @@
-CREATE DATABASE IF NOT EXISTS `vinoba-velliyanai-scada`
+CREATE DATABASE IF NOT EXISTS `solar_scada`
     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `vinoba-velliyanai-scada`;
+USE `solar_scada`;
 
 DROP TABLE IF EXISTS `plants`;
 CREATE TABLE `plants` (
