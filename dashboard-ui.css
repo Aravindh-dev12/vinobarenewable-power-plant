@@ -1,4 +1,4 @@
-/* Shared responsive UI layer. Intentionally does not define or replace theme colors. */
+/* Shared responsive UI layer + Vinoba SCADA visual parity. */
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; text-rendering: optimizeLegibility; scroll-behavior: smooth; }
 body { min-width: 0; overflow-x: hidden; }
@@ -30,7 +30,7 @@ main .bg-white.rounded-2xl,
 main .bg-white.border.rounded-xl,
 main .bg-white.border.rounded-2xl {
     min-width: 0;
-    transition: transform 180ms ease, box-shadow 180ms ease;
+    transition: box-shadow 180ms ease, border-color 180ms ease;
 }
 
 .ui-control,
@@ -39,7 +39,7 @@ input,
 select,
 textarea {
     min-height: 42px;
-    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    transition: box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
 }
 
 .ui-control:focus-visible,
@@ -54,7 +54,8 @@ textarea:focus-visible {
 
 .ui-table-scroll,
 .wrap,
-.overflow-x-auto {
+.overflow-x-auto,
+.table-hscroll {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
@@ -98,13 +99,175 @@ main .grid { min-width: 0; }
 main .flex > *,
 main .grid > * { min-width: 0; }
 
-@media (hover: hover) and (pointer: fine) {
-    .ui-surface:hover,
-    main .bg-white.rounded-xl:hover,
-    main .bg-white.rounded-2xl:hover { transform: translateY(-1px); }
+/* ------------------------------------------------------------------
+   VINOba SCADA PARITY
+   Scope this to pages that use the plant sidebar so the login screen
+   keeps its dedicated presentation.
+   ------------------------------------------------------------------ */
+body:has(#sidebar-container) {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    background: #f8fafc !important;
+    color: #1e293b !important;
+}
 
-    .ui-control:not(:disabled):hover,
-    button:not(:disabled):hover { transform: translateY(-1px); }
+body:has(#sidebar-container) main > header {
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05) !important;
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+body:has(#sidebar-container) main > header h1,
+body:has(#sidebar-container) main > header h2 {
+    color: #1e293b !important;
+    font-size: 1.25rem !important;
+    line-height: 1.75rem !important;
+    font-weight: 900 !important;
+    letter-spacing: -.015em !important;
+}
+
+body:has(#sidebar-container) main > header p {
+    color: #64748b;
+}
+
+body:has(#sidebar-container) .dashboard-shell,
+body:has(#sidebar-container) main > div[class*="max-w-"],
+body:has(#sidebar-container) main > section[class*="max-w-"] {
+    max-width: 1600px !important;
+}
+
+body:has(#sidebar-container) .surface,
+body:has(#sidebar-container) main .bg-white.rounded-xl,
+body:has(#sidebar-container) main .bg-white.rounded-2xl,
+body:has(#sidebar-container) main .bg-white.border.rounded-xl,
+body:has(#sidebar-container) main .bg-white.border.rounded-2xl {
+    border-radius: .75rem !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
+}
+
+body:has(#sidebar-container) main .bg-slate-50.rounded-xl,
+body:has(#sidebar-container) main .bg-slate-50.rounded-2xl,
+body:has(#sidebar-container) main .rounded-xl.bg-slate-50,
+body:has(#sidebar-container) main .rounded-2xl.bg-slate-50 {
+    border-radius: .625rem !important;
+}
+
+body:has(#sidebar-container) main .rounded-2xl {
+    border-radius: .75rem !important;
+}
+
+body:has(#sidebar-container) main button,
+body:has(#sidebar-container) main input,
+body:has(#sidebar-container) main select {
+    border-radius: .5rem !important;
+}
+
+body:has(#sidebar-container) main .text-3xl {
+    letter-spacing: -.025em;
+}
+
+body:has(#sidebar-container) #sidebar {
+    background: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .08) !important;
+}
+
+body:has(#sidebar-container) #sidebarNav a {
+    border-radius: .5rem !important;
+}
+
+body:has(#sidebar-container) #sidebarNav a[class*="!bg-slate-100"] {
+    background: #ecfdf5 !important;
+    color: #047857 !important;
+    box-shadow: none !important;
+}
+
+body:has(#sidebar-container) #sidebarActions a {
+    border-radius: .5rem !important;
+}
+
+/* Home page: tone down the newer dashboard treatment to Vinoba's
+   compact operational-card layout without touching live-data IDs. */
+body:has(#profileName) .surface {
+    border-radius: .75rem !important;
+}
+
+body:has(#profileName) .kpi-card {
+    min-height: 0 !important;
+    padding: 1.25rem !important;
+}
+
+body:has(#profileName) .kpi-icon {
+    display: none !important;
+}
+
+body:has(#profileName) .kpi-card > .flex:first-child {
+    justify-content: flex-end !important;
+    min-height: 0 !important;
+}
+
+body:has(#profileName) .kpi-card .mini-label {
+    margin-top: 0 !important;
+}
+
+body:has(#profileName) section:has(#profileName) {
+    padding: 1.25rem !important;
+}
+
+body:has(#profileName) section:has(#profileName) > div > div:last-child {
+    display: none !important;
+}
+
+body:has(#profileName) section:has(#powerChart) {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+}
+
+body:has(#profileName) section:has(#powerChart) > div {
+    width: 100% !important;
+}
+
+body:has(#profileName) section:has(#powerChart) > div:last-child {
+    order: -1;
+}
+
+body:has(#profileName) #connectionBadge {
+    border-radius: .5rem !important;
+}
+
+body:has(#profileName) #liveStatus,
+body:has(#profileName) #sourceBadge,
+body:has(#profileName) #powerLivePill,
+body:has(#profileName) #inverterHealthPill,
+body:has(#profileName) #htAvailability {
+    border-radius: 9999px !important;
+}
+
+/* Reports stays a document/report sheet, not a KPI dashboard. */
+body:has(#printableReport) .report-table th {
+    background: #f8fafc !important;
+    color: #475569 !important;
+}
+
+body:has(#printableReport) #printableReport {
+    border-radius: .75rem !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    body:has(#sidebar-container) main .bg-white.rounded-xl:hover,
+    body:has(#sidebar-container) main .bg-white.rounded-2xl:hover,
+    body:has(#sidebar-container) .surface:hover {
+        transform: none !important;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, .06) !important;
+    }
+
+    body:has(#sidebar-container) button:not(:disabled):hover {
+        transform: none !important;
+    }
 }
 
 @media (max-width: 1023px) {
