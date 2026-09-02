@@ -1,40 +1,32 @@
 <?php
-require 'config.php';
-header('Content-Type: text/plain');
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/plant_config.php';
+header('Content-Type: text/plain; charset=utf-8');
 
 $queries = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS plant_id VARCHAR(50) DEFAULT ''",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_token VARCHAR(128) DEFAULT NULL",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'"
 ];
-
 foreach ($queries as $q) {
-    if ($conn->query($q)) {
-        echo "OK: $q\n";
-    } else {
-        echo "SKIP/ERR: " . $conn->error . "\n";
-    }
+    try { $conn->query($q); echo "OK: $q\n"; }
+    catch (Throwable $e) { echo "SKIP: " . $e->getMessage() . "\n"; }
 }
 
-// $users = [
-//     ['admin@nuclei.com', password_hash('admin123', PASSWORD_DEFAULT), 'admin', ''],
-//     ['veliyani@vinoba.com', password_hash('veliyani123', PASSWORD_DEFAULT), 'user', 'vinoba-velliyanai'],
-//     ['makkal@makkal.com', password_hash('makkal123', PASSWORD_DEFAULT), 'user', 'makkalpower'],
-//     ['anushyam@anushyam.com', password_hash('anushyam123', PASSWORD_DEFAULT), 'user', 'anushyam']
-// ];
-
-foreach ($users as $u) {
-    $email = $u[0];
-    $check = $conn->query("SELECT id FROM users WHERE email = '$email' LIMIT 1");
-    if ($check && $check->num_rows > 0) {
-        $id = $check->fetch_assoc()['id'];
-        $conn->query("UPDATE users SET password = '{$u[1]}', role = '{$u[2]}', plant_id = '{$u[3]}' WHERE id = $id");
-        echo "Updated: $email\n";
-    } else {
-        $conn->query("INSERT INTO users (email, password, role, plant_id) VALUES ('{$u[0]}', '{$u[1]}', '{$u[2]}', '{$u[3]}')");
-        echo "Inserted: $email\n";
-    }
+$migrations = [
+    ['vinoba-1', ['vinoba-velliyanai', 'vinoba']],
+    ['ssv', ['makkalpower', 'makkal-power', 'anushyam']]
+];
+foreach ($migrations as [$newId, $oldIds]) {
+    $quoted = array_map(fn($v) => "'" . $conn->real_escape_string($v) . "'", $oldIds);
+    $sql = "UPDATE users SET plant_id='" . $conn->real_escape_string($newId) . "' WHERE plant_id IN (" . implode(',', $quoted) . ")";
+    $conn->query($sql);
+    echo "Migrated users to $newId: " . $conn->affected_rows . "\n";
 }
 
-echo "\nDone. Default users are ready.\n";
+echo "\nCanonical plants:\n";
+foreach (plant_catalog() as $p) {
+    echo "- {$p['id']} | {$p['name']} | Service Number {$p['service_number']}\n";
+}
+echo "\nDone. Existing telemetry rows are not rewritten; new SCADA data is stored under vinoba-1 and ssv.\n";
 ?>
