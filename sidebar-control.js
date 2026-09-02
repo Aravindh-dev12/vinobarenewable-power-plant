@@ -57,7 +57,7 @@
         if (!document.querySelector('link[data-dashboard-ui]')) {
             const css = document.createElement('link');
             css.rel = 'stylesheet';
-            css.href = 'dashboard-ui.css?v=3';
+            css.href = 'dashboard-ui.css?v=4';
             css.dataset.dashboardUi = '1';
             document.head.appendChild(css);
         }
@@ -90,7 +90,8 @@
   </nav>
 
   <div class="border-t border-gray-100 my-3 mx-4"></div>
-  <nav class="px-4 pb-4 space-y-1 font-medium text-sm">
+  <nav id="sidebarActions" class="px-4 pb-4 space-y-2 font-medium text-sm">
+    <a href="admin.php" id="sidebarDashboard" class="hidden group items-center gap-3 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold transition-all border-l-4 border-transparent hover:border-slate-400"><i class="fa-solid fa-arrow-left text-slate-500 w-5 text-center"></i><span>Dashboard</span></a>
     <a href="logout.php" id="sidebarLogout" class="group flex items-center gap-3 px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-semibold transition-all border-l-4 border-transparent hover:border-red-500"><i class="fa-solid fa-right-from-bracket text-red-500 w-5 text-center"></i><span>Logout</span></a>
   </nav>
 
@@ -114,24 +115,20 @@
     function updatePlantIdentity() {
         const info = PLANTS[currentPlant()];
         const sidebarName = document.getElementById('sidebarPlantName');
-        if (sidebarName && sidebarName.textContent !== info.name) sidebarName.textContent = info.name;
+        if (sidebarName) sidebarName.textContent = info.name;
         const sidebarService = document.getElementById('sidebarServiceNumber');
-        const serviceText = 'Service No. ' + info.service;
-        if (sidebarService && sidebarService.textContent !== serviceText) sidebarService.textContent = serviceText;
+        if (sidebarService) sidebarService.textContent = 'Service No. ' + info.service;
 
         const profileName = document.getElementById('profileName');
-        if (profileName && profileName.textContent.trim() !== info.name) profileName.textContent = info.name;
+        if (profileName) profileName.textContent = info.name;
+        const profileService = document.getElementById('profileServiceNumber');
+        if (profileService) profileService.textContent = 'Service No. ' + info.service;
+        const profileCapacity = document.getElementById('profileCapacity');
+        if (profileCapacity) profileCapacity.innerHTML = info.capacity + ' <span class="text-sm font-bold">MW</span>';
+        const profileLocation = document.getElementById('profileLocation');
+        if (profileLocation) profileLocation.textContent = info.location;
         const sldName = document.getElementById('sld_plant_name');
-        if (sldName && sldName.textContent.trim() !== info.name) sldName.textContent = info.name;
-
-        let profileService = document.getElementById('profileServiceNumber');
-        if (profileName && !profileService) {
-            profileService = document.createElement('p');
-            profileService.id = 'profileServiceNumber';
-            profileService.className = 'text-xs text-emerald-700 font-bold mt-1';
-            profileName.insertAdjacentElement('afterend', profileService);
-        }
-        if (profileService) profileService.textContent = 'Service Number - ' + info.service;
+        if (sldName) sldName.textContent = info.name;
     }
 
     function wireLinks(sidebar) {
@@ -155,6 +152,15 @@
             const icon = link.querySelector('i');
             if (icon) icon.classList.toggle('!text-emerald-600', active);
         });
+
+        const user = storedUser();
+        const dashboard = document.getElementById('sidebarDashboard');
+        if (dashboard) {
+            const showDashboard = String(user.role || '').toLowerCase() === 'admin' && !/\/admin\.php$/i.test(location.pathname);
+            dashboard.classList.toggle('hidden', !showDashboard);
+            dashboard.classList.toggle('flex', showDashboard);
+            dashboard.href = 'admin.php' + (token ? '?token=' + encodeURIComponent(token) : '');
+        }
 
         const logout = document.getElementById('sidebarLogout');
         if (logout) logout.href = token ? 'logout.php?token=' + encodeURIComponent(token) : 'logout.php';
@@ -244,27 +250,6 @@
         }
     }
 
-    function installAdminBackLink() {
-        const user = storedUser();
-        if (String(user.role || '').toLowerCase() !== 'admin') return;
-        if (document.getElementById('plantAdminBack')) return;
-        if (/\/admin\.php$/i.test(location.pathname)) return;
-
-        const header = document.querySelector('main > header');
-        if (!header) return;
-        const left = header.firstElementChild;
-        if (!left) return;
-
-        const link = document.createElement('a');
-        link.id = 'plantAdminBack';
-        const token = currentToken();
-        link.href = 'admin.php' + (token ? '?token=' + encodeURIComponent(token) : '');
-        link.title = 'Back to Plants';
-        link.className = 'flex items-center gap-2 px-3 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition shrink-0';
-        link.innerHTML = '<i class="fa-solid fa-arrow-left"></i><span class="text-sm font-bold hidden sm:inline">Dashboard</span>';
-        left.insertBefore(link, left.firstChild);
-    }
-
     function initSidebar() {
         ensureUiAssets();
         const sidebar = ensureSidebarMarkup();
@@ -272,7 +257,6 @@
         updatePlantIdentity();
         wireLinks(sidebar);
         wireControls(sidebar);
-        installAdminBackLink();
         applyLayout();
     }
 
@@ -294,7 +278,7 @@
                 try { window.handleLive(Object.assign({}, message, { unit_id: currentPlant() })); } catch (_) {}
             });
         } catch (_) {
-            // Page WebSocket/API fallback remains responsible for live data.
+            // Direct page WebSocket remains the primary live source.
         } finally {
             relayBusy = false;
         }
