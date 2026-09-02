@@ -10,44 +10,41 @@
     <script src="dashboard-ui.js?v=1" defer data-dashboard-ui></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        html, body { min-height: 100%; }
+
+        html, body {
+            min-height: 100%;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background-color: #0f172a;
+            background-image:
+                linear-gradient(rgba(15, 23, 42, 0.48), rgba(15, 23, 42, 0.48)),
+                url('./assets/login-background.png?v=20260902');
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: cover;
+            background-attachment: fixed;
         }
-        .login-bg {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-            z-index: -2;
-            user-select: none;
-            pointer-events: none;
+
+        .login-panel {
+            position: relative;
+            z-index: 1;
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
-        .login-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.42);
-            z-index: -1;
-            pointer-events: none;
+
+        @media (max-width: 767px) {
+            body {
+                background-attachment: scroll;
+            }
         }
-        .login-panel { position: relative; z-index: 1; }
     </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen flex items-center justify-center px-4 py-6 sm:py-10">
 
-    <img
-        class="login-bg"
-        src="https://raw.githubusercontent.com/Aravindh-dev12/vinobarenewable-power-plant/main/assets/login-background.png?v=4"
-        alt=""
-        aria-hidden="true"
-        onerror="this.onerror=null;this.src='./assets/login-background.png?v=4';"
-    >
-    <div class="login-overlay" aria-hidden="true"></div>
-
-    <div class="login-panel bg-white p-5 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm">
+    <div class="login-panel bg-white p-5 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-white/60">
         <div class="text-center mb-6">
             <div class="w-12 h-12 bg-blue-600 text-white rounded-xl mx-auto flex items-center justify-center text-xl shadow-lg mb-3">
                 <i class="fa-solid fa-solar-panel"></i>
