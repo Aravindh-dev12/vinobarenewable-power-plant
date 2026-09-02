@@ -13,20 +13,17 @@
         html, body { min-height: 100%; }
         body {
             font-family: 'Inter', sans-serif;
-            background-image: url('assets/login-background.png?v=1');
+            background-image: linear-gradient(rgba(15, 23, 42, 0.42), rgba(15, 23, 42, 0.42)), url('./assets/login-background.png?v=2');
             background-size: cover;
             background-position: center center;
             background-repeat: no-repeat;
+            background-attachment: fixed;
             background-color: #0f172a;
         }
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.42);
-            pointer-events: none;
-        }
         .login-panel { position: relative; z-index: 1; }
+        @media (max-width: 767px) {
+            body { background-attachment: scroll; background-position: center center; }
+        }
     </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen flex items-center justify-center px-4 py-6 sm:py-10">
