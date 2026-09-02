@@ -4,39 +4,57 @@ html { -webkit-text-size-adjust: 100%; text-rendering: optimizeLegibility; scrol
 body { min-width: 0; overflow-x: hidden; }
 main { min-width: 0; }
 img, svg, video, canvas { max-width: 100%; }
-button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-button, a, input, select, textarea { touch-action: manipulation; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 button, input, select, textarea { font: inherit; }
 button:disabled { cursor: not-allowed; }
 
-.ui-app-header {
+.ui-app-header,
+main > header,
+body > nav {
     min-width: 0;
     gap: .75rem;
 }
 
-.ui-page {
+.ui-page,
+main > div[class*="p-4"],
+main > div[class*="p-6"],
+main > section[class*="p-4"],
+main > section[class*="p-6"] {
     width: 100%;
     min-width: 0;
 }
 
-.ui-surface {
+.ui-surface,
+main .bg-white.rounded-xl,
+main .bg-white.rounded-2xl,
+main .bg-white.border.rounded-xl,
+main .bg-white.border.rounded-2xl {
     min-width: 0;
     transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
-.ui-control {
+.ui-control,
+button,
+input,
+select,
+textarea {
     min-height: 42px;
     transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
 .ui-control:focus-visible,
 a:focus-visible,
-button:focus-visible {
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
     outline: 2px solid currentColor;
     outline-offset: 2px;
 }
 
-.ui-table-scroll {
+.ui-table-scroll,
+.wrap,
+.overflow-x-auto {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
@@ -45,18 +63,21 @@ button:focus-visible {
     scrollbar-gutter: stable;
 }
 
-.ui-table-scroll table {
+.ui-table-scroll table,
+.wrap table,
+.overflow-x-auto table {
     min-width: 720px;
 }
 
-.ui-modal {
+.ui-modal,
+.fixed.inset-0 {
     overflow-y: auto;
     overscroll-behavior: contain;
 }
 
-.ui-modal > * {
+.ui-modal > *,
+.fixed.inset-0 > * {
     max-height: calc(100dvh - 2rem);
-    overflow-y: auto;
 }
 
 #sidebar {
@@ -65,80 +86,139 @@ button:focus-visible {
     overscroll-behavior: contain;
 }
 
-#sidebarNav {
-    overscroll-behavior: contain;
-}
-
+#sidebarNav { overscroll-behavior: contain; }
 #sidebarNav a,
-#sidebar a {
-    min-height: 42px;
-}
+#sidebar a { min-height: 42px; }
 
-.ui-nowrap-safe { min-width: 0; }
-.ui-nowrap-safe > * { min-width: 0; }
+.ui-nowrap-safe,
+main .flex,
+main .grid { min-width: 0; }
+
+.ui-nowrap-safe > *,
+main .flex > *,
+main .grid > * { min-width: 0; }
 
 @media (hover: hover) and (pointer: fine) {
-    .ui-surface:hover { transform: translateY(-1px); }
-    .ui-control:not(:disabled):hover { transform: translateY(-1px); }
+    .ui-surface:hover,
+    main .bg-white.rounded-xl:hover,
+    main .bg-white.rounded-2xl:hover { transform: translateY(-1px); }
+
+    .ui-control:not(:disabled):hover,
+    button:not(:disabled):hover { transform: translateY(-1px); }
 }
 
 @media (max-width: 1023px) {
-    .ui-page { gap: 1rem !important; }
-    .ui-app-header { min-height: 60px; }
+    .ui-page,
+    main > div[class*="p-4"],
+    main > div[class*="p-6"],
+    main > section[class*="p-4"],
+    main > section[class*="p-6"] { gap: 1rem !important; }
+
+    .ui-app-header,
+    main > header,
+    body > nav { min-height: 60px; }
 }
 
 @media (max-width: 767px) {
     html { scroll-padding-top: 72px; }
     #sidebar { width: min(18rem, 88vw) !important; }
 
-    .ui-app-header {
+    .ui-app-header,
+    main > header,
+    body > nav {
         min-height: 58px;
         padding: .875rem 1rem !important;
         flex-wrap: wrap;
         align-items: center;
     }
 
-    .ui-app-header > * { min-width: 0; }
-    .ui-page { padding: 1rem !important; gap: 1rem !important; }
-    .ui-surface { min-width: 0; }
-    .ui-control { min-height: 44px; }
+    .ui-app-header > *,
+    main > header > *,
+    body > nav > * { min-width: 0; }
 
-    input.ui-control,
-    select.ui-control,
-    textarea.ui-control { font-size: 16px; }
+    .ui-page,
+    main > div[class*="p-4"],
+    main > div[class*="p-6"],
+    main > section[class*="p-4"],
+    main > section[class*="p-6"] {
+        padding: 1rem !important;
+        gap: 1rem !important;
+    }
 
-    .ui-table-scroll table { min-width: 640px; }
+    .ui-control,
+    button,
+    input,
+    select,
+    textarea { min-height: 44px; }
 
-    .ui-modal {
+    input,
+    select,
+    textarea { font-size: 16px; }
+
+    .ui-table-scroll table,
+    .wrap table,
+    .overflow-x-auto table { min-width: 640px; }
+
+    .ui-modal,
+    .fixed.inset-0 {
         align-items: flex-start !important;
         padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom)) !important;
     }
 
-    .ui-modal > * { width: 100%; }
+    .ui-modal > *,
+    .fixed.inset-0 > * { width: 100%; }
 
     [style*="height:400px"],
     [style*="height: 400px"] { max-height: 360px; }
 }
 
 @media (max-width: 479px) {
-    .ui-page { padding: .75rem !important; gap: .75rem !important; }
-    .ui-app-header { padding: .75rem !important; }
+    .ui-page,
+    main > div[class*="p-4"],
+    main > div[class*="p-6"],
+    main > section[class*="p-4"],
+    main > section[class*="p-6"] {
+        padding: .75rem !important;
+        gap: .75rem !important;
+    }
+
+    .ui-app-header,
+    main > header,
+    body > nav { padding: .75rem !important; }
+
     .ui-app-header h1,
-    .ui-app-header h2 { font-size: 1.125rem !important; line-height: 1.4 !important; }
+    .ui-app-header h2,
+    main > header h1,
+    main > header h2,
+    body > nav h1,
+    body > nav h2 {
+        font-size: 1.125rem !important;
+        line-height: 1.4 !important;
+    }
 
     #inv_summary_cards {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: .75rem !important;
     }
 
-    #inv_summary_cards .ui-surface { padding: 1rem !important; }
+    #inv_summary_cards .ui-surface,
+    #inv_summary_cards .bg-white.rounded-xl { padding: 1rem !important; }
     #inv_summary_cards .text-3xl { font-size: 1.5rem !important; line-height: 2rem !important; }
 
-    .ui-table-scroll table { min-width: 600px; }
+    .ui-table-scroll table,
+    .wrap table,
+    .overflow-x-auto table { min-width: 600px; }
 }
 
 @media (min-width: 1280px) {
-    .ui-page { padding-left: 2rem !important; padding-right: 2rem !important; }
+    .ui-page,
+    main > div[class*="p-4"],
+    main > div[class*="p-6"],
+    main > section[class*="p-4"],
+    main > section[class*="p-6"] {
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
