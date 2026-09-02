@@ -46,6 +46,7 @@ if ($plantStmt) {
 }
 
 $users = [
+    ['admin@scada.com', 'admin@123', 'admin', ''],
     ['vinobarenew@scada.com', 'vinoba@123', 'user', 'vinoba-1'],
     ['ssvgreen@scada.com', 'ssv@123', 'user', 'ssv'],
 ];
@@ -84,6 +85,7 @@ $update->close();
 $insert->close();
 
 echo "\nLogin users are ready in shared database.\n";
+echo "Admin:  admin@scada.com / admin@123\n";
 echo "Vinoba: vinobarenew@scada.com / vinoba@123\n";
 echo "SSV:    ssvgreen@scada.com / ssv@123\n";
 ?>
