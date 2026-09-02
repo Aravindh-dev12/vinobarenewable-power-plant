@@ -37,7 +37,7 @@ CREATE TABLE `users` (
 -- Vinoba user: vinobarenew@scada.com / vinoba@123
 -- SSV user: ssvgreen@scada.com / ssv@123
 INSERT INTO `users` (`email`,`password`,`role`,`plant_id`) VALUES
-('admin@scada.com','$2y$12$xzaJx29CQd2cz6xWFtZ.NuDHyk68Hhc77eYux4mxCKMWkCy4TD9Ke','admin',''),
+('admin@scada.com','$2y$12$EXjfVDTrM7rErGE9LK//Y.wY2empw5RTIuVQsK8nE9yCA7m1/Tz9C','admin',''),
 ('vinobarenew@scada.com','$2y$12$V1jKdI8V8pJgDw67V/Kgo.x2NwB7xrx2a/8NXI1HWqpefjTRyClVC','user','vinoba-1'),
 ('ssvgreen@scada.com','$2y$12$nbEf4Q7/A75Cce/AT3W04.A9ttS6OGixElhC7AMGZK4D438LFBY5W','user','ssv');
 
