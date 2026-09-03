@@ -1,9 +1,9 @@
 <?php
 // Direct MySQL configuration for this SCADA deployment.
 $host = 'localhost';
-$username = 'root';
-$password = 'Arun@811001';
-$dbname = 'vinoba-renewbale';
+$username = '';
+$password = '';
+$dbname = '';
 
 $conn = null;
 $dbError = null;
