@@ -64,7 +64,15 @@ const token = <?php echo json_encode($token); ?>;
 const WS_URL = 'wss://vinobasolar.scadahub.in:5001';
 const state = {};
 let ws = null, reconnectTimer = null;
-plants.forEach(p => state[p.id] = {vcbPower:0, hasVCB:false, dailyEnergy:0, inverters:{}, lastLive:0, lastUpdate:'Waiting for telemetry'});
+
+plants.forEach(p => state[p.id] = {
+    vcbPower:0,
+    hasVCB:false,
+    dailyEnergy:0,
+    inverters:{},
+    lastLive:0,
+    lastUpdate:'Waiting for telemetry'
+});
 
 const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const fmt = (v,d=2) => num(v).toFixed(d);
@@ -76,46 +84,49 @@ function invPower(values){
     }
     return 0;
 }
-function dailyGen(values){ for(const [k,v] of Object.entries(values||{})) if(/daily.*generation|daily.*gen/i.test(k)) return num(v); return null; }
+function dailyGen(values){
+    for(const [k,v] of Object.entries(values||{})) if(/daily.*generation|daily.*gen/i.test(k)) return num(v);
+    return null;
+}
 
-// Count only active numbered PV/string current channels from the live inverter message.
-// Voltage, phase, MPPT, grid, DC-total and other numbered registers never increase this count.
-function liveStringCount(values){
-    const channels = new Map();
-    for(const [key,value] of Object.entries(values||{})){
-        const raw = String(key||'');
-        const s = raw.toLowerCase().replace(/[_.-]+/g,' ');
-        if(!/(curr|current|amp)/.test(s)) continue;
-        if(/phase|3\s*phase|frequency|freq|temperature|temp|ambient|reactive|apparent|power|energy|generation|co2|working|hour|grid|load|total|inverter|efficiency|factor|cosphi|thd|alarm|status/.test(s)) continue;
-
-        let m = s.match(/(?:string|pv(?:\s*string)?|input|channel|ch)\s*#?\s*(\d+)/i);
-        if(!m) m = s.match(/\b(\d+)\b/);
-        if(!m) continue;
-        const no = Number(m[1]);
-        if(!Number.isFinite(no) || no < 1 || no > 200) continue;
-
-        // Bare numbered channels are allowed only when no unrelated text remains.
-        if(!/(string|pv|input|channel|\bch\b)/.test(s)){
-            const residual = s
-                .replace(/\b(curr(?:ent)?|amp(?:ere)?s?)\b/g,' ')
-                .replace(new RegExp('\\b'+no+'\\b','g'),' ')
-                .replace(/\s+/g,' ').trim();
-            if(residual !== '') continue;
-        }
-        channels.set(no, num(value));
+// Same approach as the working Vinoba inverter page:
+// group numbered live channels, reject inverter/phase/grid/MPPT/DC-level currents,
+// then count a group only when it has a string-like current channel.
+function liveStringStats(values){
+    const keys = Object.keys(values||{});
+    const byNum = {};
+    for(const key of keys){
+        const match = key.match(/(\d+)/);
+        if(!match) continue;
+        const no = Number(match[1]);
+        if(!Number.isFinite(no)) continue;
+        (byNum[no] ??= []).push(key);
     }
-    if(!channels.size) return null;
-    let active = 0;
-    channels.forEach(current => { if(current > 0.5) active++; });
-    return active;
+
+    let total = 0, active = 0;
+    for(const group of Object.values(byNum)){
+        let currKey = '';
+        for(const key of group){
+            const s = key.toLowerCase();
+            if(/phase|phasa|ph_|r\.phase|y\.phase|b\.phase|a\.phase|c\.phase|3\.phase|three\.phase/.test(s)) continue;
+            if(/inverter.*curr|inv.*curr|total.*curr|grid.*curr|load.*curr|reactive.*curr|mppt.*curr|dc.*curr/.test(s)) continue;
+            if(/freq|temperature|temp|ambient|cosphi|pf.*_/.test(s)) continue;
+            if(!currKey && /(?:^|[^a-z])(curr|current|amp|i)(?:[^a-z]|$)/i.test(s) && !/(volt|voltage|temp|freq)/.test(s)) currKey = key;
+        }
+        if(!currKey) continue;
+        total++;
+        if(num(values[currKey]) > 0.5) active++;
+    }
+    return total ? {active,total} : null;
 }
 
 function finalPower(st){
     const inv = Object.values(st.inverters).reduce((s,x)=>s+num(x.power),0);
     return st.hasVCB && num(st.vcbPower)>0 ? num(st.vcbPower) : inv;
 }
-function updateOverall(){ document.getElementById('overall').textContent = Object.values(state).reduce((s,x)=>s+finalPower(x),0).toFixed(2)+' kW'; }
-
+function updateOverall(){
+    document.getElementById('overall').textContent = Object.values(state).reduce((s,x)=>s+finalPower(x),0).toFixed(2)+' kW';
+}
 function cardHtml(p){
     return `<article class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-5">
         <div class="flex items-start justify-between gap-4"><div class="min-w-0">
@@ -152,8 +163,9 @@ function updatePlant(id){
     if(names.length){
         box.innerHTML = names.map(name=>{
             const inv = st.inverters[name];
-            const countText = inv.liveStringCount === null || inv.liveStringCount === undefined ? '-- strings' : inv.liveStringCount+' strings';
-            return `<div class="flex items-center justify-between gap-3 px-2 py-2.5 border-b border-slate-100 last:border-0"><div class="min-w-0"><span class="text-xs font-black truncate block">${esc(name)}</span><span class="text-[10px] text-slate-500">${countText}</span></div><span class="text-[11px] font-black shrink-0">${fmt(inv.power,1)} kW</span></div>`;
+            const stats = inv.stringStats;
+            const stringText = stats ? `${stats.active}/${stats.total} strings` : '-- strings';
+            return `<div class="flex items-center justify-between gap-3 px-2 py-2.5 border-b border-slate-100 last:border-0"><div class="min-w-0"><span class="text-xs font-black truncate block">${esc(name)}</span><span class="text-[10px] text-slate-500">${stringText}</span></div><span class="text-[11px] font-black shrink-0">${fmt(inv.power,1)} kW</span></div>`;
         }).join('');
     }
     updateOverall();
@@ -164,28 +176,48 @@ function handleMessage(d){
     if(!d || typeof d!=='object' || d.type==='daily_data_result') return;
     const id = String(d.unit_id||d.unitId||d.plant_id||d.plantId||'').trim().toLowerCase();
     if(!state[id]) return;
-    const st = state[id], values = d.values||{}, task = String(d.task||'').toLowerCase(), dev = String(d.device||''), device = dev.toLowerCase(), keys = Object.keys(values);
+
+    const st = state[id];
+    const values = d.values||{};
+    const task = String(d.task||'').toLowerCase();
+    const dev = String(d.device||'');
+    const device = dev.toLowerCase();
+    const keys = Object.keys(values);
     const isVCB = task==='vcb' || device.includes('vcb');
 
     if(isVCB){
-        if(values['3 Phase Active Power'] !== undefined){ st.vcbPower = num(values['3 Phase Active Power']); st.hasVCB = true; }
+        if(values['3 Phase Active Power'] !== undefined){
+            st.vcbPower = num(values['3 Phase Active Power']);
+            st.hasVCB = true;
+        }
         for(const [k,v] of Object.entries(d.virtualTags||{})){
-            if(/vcb.*today|today.*energy/i.test(k)){ st.dailyEnergy = num(v&&typeof v==='object'?v.value:v); break; }
+            if(/vcb.*today|today.*energy/i.test(k)){
+                st.dailyEnergy = num(v&&typeof v==='object'?v.value:v);
+                break;
+            }
         }
     }
 
-    const count = liveStringCount(values);
-    const isInv = !isVCB && (task==='inverter' || device.includes('inverter') || keys.some(k=>/active.*power|ac.*power|power.*ac/i.test(k)) || count !== null);
+    const stringStats = liveStringStats(values);
+    const isInv = !isVCB && (
+        task==='inverter' ||
+        device.includes('inverter') ||
+        keys.some(k=>/active.*power|ac.*power|power.*ac/i.test(k)) ||
+        stringStats !== null
+    );
+
     if(isInv){
         const name = dev || 'Inverter';
-        const old = st.inverters[name] || {daily:0,liveStringCount:null};
+        const old = st.inverters[name] || {daily:0,stringStats:null};
         const daily = dailyGen(values);
         st.inverters[name] = {
             power: invPower(values),
             daily: daily===null ? num(old.daily) : daily,
-            liveStringCount: count===null ? old.liveStringCount : count
+            stringStats: stringStats===null ? old.stringStats : stringStats
         };
-        if(!(st.hasVCB && st.dailyEnergy>0)) st.dailyEnergy = Object.values(st.inverters).reduce((s,x)=>s+num(x.daily),0);
+        if(!(st.hasVCB && st.dailyEnergy>0)){
+            st.dailyEnergy = Object.values(st.inverters).reduce((s,x)=>s+num(x.daily),0);
+        }
     }
 
     if(!isVCB && !isInv) return;
@@ -200,20 +232,28 @@ function updatePortfolioStatus(){
     const el = document.getElementById('wsStatus');
     el.innerHTML = `<span class="dot ${all?'bg-emerald-500':some?'bg-amber-500':'bg-red-500'}"></span>${all?'All plants live':liveCount+'/'+plants.length+' live'}`;
     el.className = 'text-xs font-bold flex items-center gap-1.5 '+(all?'text-emerald-600':some?'text-amber-600':'text-red-600');
-    const p = document.getElementById('portfolioLive');
-    p.textContent = all ? 'ALL PLANTS LIVE' : liveCount+'/'+plants.length+' LIVE';
-    p.className = 'text-[10px] font-bold rounded-full px-3 py-1.5 '+(all?'bg-emerald-100 text-emerald-700':some?'bg-amber-100 text-amber-700':'bg-red-50 text-red-700');
+    const badge = document.getElementById('portfolioLive');
+    badge.textContent = all ? 'ALL PLANTS LIVE' : liveCount+'/'+plants.length+' LIVE';
+    badge.className = 'text-[10px] font-bold rounded-full px-3 py-1.5 '+(all?'bg-emerald-100 text-emerald-700':some?'bg-amber-100 text-amber-700':'bg-red-50 text-red-700');
 }
 
 function connectWS(){
     if(ws && (ws.readyState===WebSocket.OPEN || ws.readyState===WebSocket.CONNECTING)) return;
     try{
         ws = new WebSocket(WS_URL);
-        ws.onopen = () => { plants.forEach(p=>ws.send(JSON.stringify({type:'subscribe',unit_id:p.id}))); updatePortfolioStatus(); };
+        ws.onopen = () => {
+            plants.forEach(p=>ws.send(JSON.stringify({type:'subscribe',unit_id:p.id})));
+            updatePortfolioStatus();
+        };
         ws.onmessage = e => { try{ handleMessage(JSON.parse(e.data)); }catch(err){ console.error(err); } };
-        ws.onclose = () => { ws=null; clearTimeout(reconnectTimer); reconnectTimer=setTimeout(connectWS,3000); updatePortfolioStatus(); };
-        ws.onerror = () => { try{ws.close();}catch(_){} };
-    }catch(_){ reconnectTimer=setTimeout(connectWS,3000); }
+        ws.onclose = () => {
+            ws = null;
+            clearTimeout(reconnectTimer);
+            reconnectTimer = setTimeout(connectWS,3000);
+            updatePortfolioStatus();
+        };
+        ws.onerror = () => { try{ ws.close(); }catch(_){} };
+    }catch(_){ reconnectTimer = setTimeout(connectWS,3000); }
 }
 
 function indiaNow(){
@@ -224,17 +264,25 @@ function indiaNow(){
 async function databaseFallback(id){
     if(Date.now()-state[id].lastLive<20000) return;
     try{
-        const t=indiaNow(), q=new URLSearchParams({tab:'inv_vcb',type:'daily',date:t.date,plant:id,token});
-        const r=await fetch('api_reports.php?'+q.toString(),{cache:'no-store',headers:{Authorization:'Bearer '+token}}), j=await r.json();
+        const t=indiaNow();
+        const q=new URLSearchParams({tab:'inv_vcb',type:'daily',date:t.date,plant:id,token});
+        const r=await fetch('api_reports.php?'+q.toString(),{cache:'no-store',headers:{Authorization:'Bearer '+token}});
+        const j=await r.json();
         if(!j.success || !Array.isArray(j.data) || !j.data.length) return;
         const elapsed=j.data.filter(row=>{const m=String(row.time_label||'').match(/^(\d+):(\d+)/);return m&&Number(m[1])*60+Number(m[2])<=t.mins;});
         if(!elapsed.length) return;
+
         const row=elapsed.at(-1), st=state[id], names=Array.isArray(j.meta?.inv_names)?j.meta.inv_names:[];
         names.forEach((name,i)=>{
-            const old=st.inverters[name]||{liveStringCount:null};
-            st.inverters[name]={power:num(row['inv'+(i+1)+'_kw']),daily:num(row['inv'+(i+1)+'_kwh']),liveStringCount:old.liveStringCount};
+            const old=st.inverters[name]||{stringStats:null};
+            st.inverters[name]={
+                power:num(row['inv'+(i+1)+'_kw']),
+                daily:num(row['inv'+(i+1)+'_kwh']),
+                stringStats:old.stringStats||null
+            };
         });
-        st.vcbPower=num(row.vcb_kw); st.hasVCB=Boolean(j.meta?.ht_available)&&st.vcbPower>0;
+        st.vcbPower=num(row.vcb_kw);
+        st.hasVCB=Boolean(j.meta?.ht_available)&&st.vcbPower>0;
         st.dailyEnergy=Math.max(0,...elapsed.map(x=>num(x.inv_total_kwh)));
         st.lastUpdate='Database '+new Date().toLocaleTimeString('en-IN',{hour12:false});
         updatePlant(id);
