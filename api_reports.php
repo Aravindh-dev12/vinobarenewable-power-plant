@@ -111,7 +111,8 @@ try {
     $plantClause = "plant_id IN ($idList)";
 
     $chart = isset($_GET['chart']) && $_GET['chart'] === '1';
-    $bucketMinutes = $chart ? 60 : 15;
+    $requestedInterval = (int)($_GET['interval'] ?? 0);
+    $bucketMinutes = $chart ? 60 : (in_array($requestedInterval, [5, 15], true) ? $requestedInterval : 15);
     $rows = $type === 'daily' ? dailyBuckets($bucketMinutes) : monthlyBuckets($date);
 
     $periodStart = $type === 'daily' ? $date . ' 00:00:00' : $date . '-01 00:00:00';
@@ -175,7 +176,7 @@ try {
     if ($type === 'daily') {
         $dateEsc = $conn->real_escape_string($date);
 
-        // Daily report: 15-minute (or hourly chart) rows strictly from 05:00 to 19:00.
+        // Daily report: requested interval buckets (5 or 15 minutes), or hourly chart rows, from 05:00 to 19:00.
         $q = "SELECT plant_id,device_name,recorded_at,daily_generation,ac_active_power,internal_temp
               FROM inverter_readings
               WHERE DATE(recorded_at)='$dateEsc' AND $timeClause AND $plantClause
