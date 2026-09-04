@@ -51,6 +51,11 @@ body:has(#sidebar-container) button:focus-visible,body:has(#sidebar-container) a
 body:has(#vcb_status) main>div[class*="max-w-"],body:has(#trafo_status) main>div[class*="max-w-"],body:has(#perf_val) main>div[class*="max-w-"],body:has(#profileName) main>div[class*="max-w-"]{gap:20px!important}
 body:has(#profileName) #inv_grid{gap:16px!important}
 body:has(#profileName) #powerChart{max-width:100%!important}
+/* Home inverter overview cards: eye control replaces the old green/grey status dot. The card click still opens its live string modal. */
+.inv-card{position:relative!important;padding-right:3.35rem!important}
+.inv-card>div:first-child>span.rounded-full{display:none!important}
+.inv-card::after{content:"\f06e";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;top:.8rem;right:.8rem;width:2rem;height:2rem;display:flex;align-items:center;justify-content:center;border:1px solid #bfdbfe;border-radius:.5rem;background:#eff6ff;color:#2563eb;font-size:.8rem;pointer-events:none}
+.inv-card:hover::after{background:#dbeafe;border-color:#93c5fd}
 body:has(#sld_grid) main .bg-slate-900{border-radius:.75rem!important;box-shadow:none!important}
 body:has(#printableReport) #printableReport,body:has(#printable) #printable{background:#fff!important;border:1px solid #e2e8f0!important;border-radius:.75rem!important;box-shadow:0 1px 2px rgba(15,23,42,.04)!important}
 body:has(#printableReport) .report-table th,body:has(#printable) table th{background:#f8fafc!important;color:#475569!important;font-size:.65rem!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.05em!important}
