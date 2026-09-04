@@ -94,9 +94,8 @@ const PLANT_NAME=<?php echo json_encode($plantInfo['name']); ?>;
 const WS_URL='wss://vinobasolar.scadahub.in:5001';
 const EXPECTED=CURRENT_PLANT==='vinoba-1'?{1:23,2:23,3:23,4:23,5:23,6:23,7:22}:{1:23,2:23,3:23,4:23};
 const EXPECTED_COUNT=CURRENT_PLANT==='vinoba-1'?7:4;
-const DEFAULT_MPPT_COLUMNS=6;
 const data={};
-let ws=null,reconnectTimer=null,lastLiveAt=0,socketOpen=false;
+let ws=null,reconnectTimer=null,lastLiveAt=0;
 
 function num(v){const n=Number(v);return Number.isFinite(n)?n:null;}
 function fmt(v,d=1){return v===null||v===undefined?'--':Number(v).toFixed(d);}
@@ -135,22 +134,29 @@ function parseStrings(values){
     return out;
 }
 
+function mpptNumberFromKey(key){
+    const lower=String(key||'').toLowerCase();
+    let m=lower.match(/\bmppt\s*[-_:#]?\s*(\d+)\b/i);
+    if(!m)m=lower.match(/\b(\d+)\s*[-_:#]?\s*mppt\b/i);
+    return m?Number(m[1]):null;
+}
 function parseMppt(values){
     const groups={};
     for(const [key,value] of Object.entries(values||{})){
-        const lower=key.toLowerCase();if(!/mppt/.test(lower))continue;
-        const match=lower.match(/mppt\D*(\d+)/i)||key.match(/(\d+)/);if(!match)continue;
-        const no=Number(match[1]);if(!groups[no])groups[no]={voltage:null,current:null};
+        const lower=key.toLowerCase();
+        if(!/mppt/.test(lower)||!/(volt|voltage|curr|current|amp)/.test(lower))continue;
+        const no=mpptNumberFromKey(key);if(no===null||no<1)continue;
+        if(!groups[no])groups[no]={voltage:null,current:null};
         const n=num(value);if(n===null)continue;
         if(/volt|voltage/.test(lower))groups[no].voltage=n;
         else if(/curr|current|amp/.test(lower))groups[no].current=n;
     }
     return groups;
 }
-
-function observedMpptColumns(){
-    let max=0;Object.values(data).forEach(item=>Object.keys(item.mppt||{}).forEach(k=>{max=Math.max(max,Number(k)||0);}));
-    return Math.max(DEFAULT_MPPT_COLUMNS,max);
+function observedMpptIds(){
+    const ids=new Set();
+    Object.values(data).forEach(item=>Object.keys(item.mppt||{}).forEach(k=>{const n=Number(k);if(Number.isInteger(n)&&n>0)ids.add(n);}));
+    return [...ids].sort((a,b)=>a-b);
 }
 function stringStats(){
     let active=0,zero=0,observed=0;
@@ -160,11 +166,15 @@ function stringStats(){
 function liveInverterCount(){return Object.values(data).filter(x=>x.received).length;}
 
 function buildMpptHead(){
-    const count=observedMpptColumns();
+    const ids=observedMpptIds();
+    if(!ids.length){
+        document.getElementById('mpptHead').innerHTML='<tr><th class="sticky-col bg-slate-100 px-4 py-3 text-left font-black uppercase tracking-wider text-slate-700 min-w-[150px]">Inverter</th><th class="bg-slate-50 px-4 py-3 text-center font-black text-slate-400 min-w-[220px]">Live MPPT channels</th></tr>';
+        return;
+    }
     let top='<tr><th rowspan="2" class="sticky-col bg-slate-100 px-4 py-3 text-left font-black uppercase tracking-wider text-slate-700 min-w-[150px]">Inverter</th>';
-    for(let i=1;i<=count;i++)top+=`<th colspan="2" class="mppt-group px-4 py-2 text-center font-black uppercase tracking-wider min-w-[150px]">MPPT ${i}</th>`;
+    ids.forEach(id=>{top+=`<th colspan="2" class="mppt-group px-4 py-2 text-center font-black uppercase tracking-wider min-w-[150px]">MPPT ${id}</th>`;});
     top+='</tr><tr>';
-    for(let i=1;i<=count;i++)top+='<th class="sub-head px-3 py-2 text-right text-[10px] font-black">V</th><th class="sub-head px-3 py-2 text-right text-[10px] font-black">A</th>';
+    ids.forEach(()=>{top+='<th class="sub-head px-3 py-2 text-right text-[10px] font-black">V</th><th class="sub-head px-3 py-2 text-right text-[10px] font-black">A</th>';});
     top+='</tr>';document.getElementById('mpptHead').innerHTML=top;
 }
 function buildStringHead(){
@@ -173,10 +183,11 @@ function buildStringHead(){
     html+='</tr>';document.getElementById('stringHead').innerHTML=html;
 }
 function mpptRows(){
-    const count=observedMpptColumns();
+    const ids=observedMpptIds();
     return Object.keys(data).sort((a,b)=>invNo(a)-invNo(b)).map(name=>{
         const item=data[name];let row=`<tr class="hover:bg-slate-50/70"><td class="sticky-col bg-white px-4 py-3 font-black text-slate-800">${name}<div class="text-[9px] mt-0.5 ${item.received?'text-emerald-600':'text-slate-400'}">${item.received?'LIVE':'WAITING'}</div></td>`;
-        for(let i=1;i<=count;i++){const m=item.mppt[i]||{};row+=`<td class="px-3 py-3 text-right font-mono text-slate-700">${fmt(m.voltage,1)}</td><td class="px-3 py-3 text-right font-mono text-slate-700">${fmt(m.current,2)}</td>`;}
+        if(!ids.length)return row+'<td class="px-4 py-3 text-center text-slate-400">--</td></tr>';
+        ids.forEach(id=>{const m=item.mppt[id]||{};row+=`<td class="px-3 py-3 text-right font-mono text-slate-700">${fmt(m.voltage,1)}</td><td class="px-3 py-3 text-right font-mono text-slate-700">${fmt(m.current,2)}</td>`;});
         return row+'</tr>';
     }).join('');
 }
@@ -196,8 +207,8 @@ function stringRows(){
 }
 function render(){
     buildMpptHead();buildStringHead();document.getElementById('mpptBody').innerHTML=mpptRows();document.getElementById('stringBody').innerHTML=stringRows();
-    const mpptCols=observedMpptColumns(),stats=stringStats(),liveCount=liveInverterCount();
-    document.getElementById('mpptMeta').textContent=`${EXPECTED_COUNT} inverters × ${mpptCols} MPPT slots · live values only`;
+    const mpptIds=observedMpptIds(),stats=stringStats(),liveCount=liveInverterCount();
+    document.getElementById('mpptMeta').textContent=mpptIds.length?`${mpptIds.length} live MPPT channels observed: ${mpptIds.join(', ')}`:'Waiting for MPPT-named voltage/current tags from live WebSocket';
     document.getElementById('stringMeta').textContent=`${EXPECTED_COUNT} inverter rows · up to ${maxStringColumns()} configured strings · ${PLANT_NAME}`;
     document.getElementById('activeTotal').textContent=stats.observed?stats.active:'--';document.getElementById('zeroTotal').textContent=stats.observed?stats.zero:'--';document.getElementById('observedTotal').textContent=stats.observed||'--';
     const zero=document.getElementById('zeroFaultBadge');zero.innerHTML=`<span class="status-dot ${stats.observed?(stats.zero?'bg-rose-500':'bg-emerald-500'):'bg-slate-400'}"></span>Zero current: ${stats.observed?stats.zero:'--'}`;zero.className=`inline-flex items-center gap-2 rounded-lg border px-3 py-2 ${stats.observed&&stats.zero?'border-rose-200 bg-rose-50 text-rose-600':stats.observed?'border-emerald-200 bg-emerald-50 text-emerald-700':'border-slate-200 bg-slate-50 text-slate-500'}`;
@@ -226,7 +237,7 @@ window.handleLive=handle;
 
 function connect(){
     if(ws&&(ws.readyState===WebSocket.OPEN||ws.readyState===WebSocket.CONNECTING))return;setSocketState('connecting');
-    try{ws=new WebSocket(WS_URL);ws.onopen=()=>{socketOpen=true;setSocketState('live');ws.send(JSON.stringify({type:'subscribe',unit_id:CURRENT_PLANT}));};ws.onmessage=e=>{try{handle(JSON.parse(e.data));}catch(err){console.error('MPPT/string message error',err);}};ws.onclose=()=>{socketOpen=false;ws=null;setSocketState('error');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,3000);};ws.onerror=()=>{try{ws.close();}catch(_){}};}catch(_){socketOpen=false;setSocketState('error');reconnectTimer=setTimeout(connect,3000);}
+    try{ws=new WebSocket(WS_URL);ws.onopen=()=>{setSocketState('live');ws.send(JSON.stringify({type:'subscribe',unit_id:CURRENT_PLANT}));};ws.onmessage=e=>{try{handle(JSON.parse(e.data));}catch(err){console.error('MPPT/string message error',err);}};ws.onclose=()=>{ws=null;setSocketState('error');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,3000);};ws.onerror=()=>{try{ws.close();}catch(_){}};}catch(_){setSocketState('error');reconnectTimer=setTimeout(connect,3000);}
 }
 
 render();connect();setInterval(render,5000);
