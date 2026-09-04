@@ -282,10 +282,10 @@ function renderInverters(){
     document.getElementById('inverterCount').textContent=names.length+' inverter'+(names.length===1?'':'s');
     if(!names.length)return;
     grid.innerHTML=names.map(name=>{
-        const x=state.inverters[name], online=n(x.power)>0||n(x.daily)>0, active=(x.strings||[]).filter(s=>s.active).length, total=(x.strings||[]).length;
-        return `<button type="button" data-name="${encodeURIComponent(name)}" class="inv-card text-left bg-slate-50 rounded-xl border border-slate-200 p-4"><div class="flex justify-between gap-3"><div><p class="text-xs font-black text-slate-700">${name}</p><p class="text-2xl font-black mt-1">${n(x.power).toFixed(1)} <span class="text-xs text-blue-600">kW</span></p></div><span class="w-2.5 h-2.5 mt-1 rounded-full ${online?'bg-emerald-500':'bg-slate-300'}"></span></div><div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-200"><div><p class="text-[9px] font-bold text-slate-400 uppercase">Today</p><p class="text-xs font-black mt-1">${n(x.daily).toFixed(1)} kWh</p></div><div><p class="text-[9px] font-bold text-slate-400 uppercase">Strings</p><p class="text-xs font-black mt-1">${total?active+'/'+total:'--'}</p></div></div></button>`;
+        const x=state.inverters[name], active=(x.strings||[]).filter(s=>s.active).length, total=(x.strings||[]).length;
+        return `<button type="button" data-name="${encodeURIComponent(name)}" class="inv-overview-card text-left bg-slate-50 rounded-xl border border-slate-200 p-4"><div class="flex justify-between gap-3"><div><p class="text-xs font-black text-slate-700">${name}</p><p class="text-2xl font-black mt-1">${n(x.power).toFixed(1)} <span class="text-xs text-blue-600">kW</span></p></div><span class="w-8 h-8 rounded-lg border border-blue-200 bg-blue-50 text-blue-600 flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-eye text-xs"></i></span></div><div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-200"><div><p class="text-[9px] font-bold text-slate-400 uppercase">Today</p><p class="text-xs font-black mt-1">${n(x.daily).toFixed(1)} kWh</p></div><div><p class="text-[9px] font-bold text-slate-400 uppercase">Strings</p><p class="text-xs font-black mt-1">${total?active+'/'+total:'--'}</p></div></div></button>`;
     }).join('');
-    grid.querySelectorAll('.inv-card').forEach(btn=>btn.addEventListener('click',()=>openStringModal(decodeURIComponent(btn.dataset.name||''))));
+    grid.querySelectorAll('.inv-overview-card').forEach(btn=>btn.addEventListener('click',()=>openStringModal(decodeURIComponent(btn.dataset.name||''))));
 }
 function render(){
     const power=activePower(), energy=todayEnergy();
