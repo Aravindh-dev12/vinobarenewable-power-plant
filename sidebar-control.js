@@ -2,8 +2,8 @@
     'use strict';
 
     const PLANTS = {
-        'vinoba-1': { id:'vinoba-1', name:'Vinoba Renewable Energy Private Limited', capacity:'2.0', location:'Karur' },
-        'ssv': { id:'ssv', name:'SSV Green Power Private Limited', capacity:'2.0', location:'Karur' }
+        'vinoba-1': { id:'vinoba-1', name:'Vinoba Renewable Energy Private Limited', capacity:'2.0' },
+        'ssv': { id:'ssv', name:'SSV Green Power Private Limited', capacity:'1.0' }
     };
     const WS_SEED_INTERVAL = 30000;
     const DESKTOP_BREAKPOINT = 768;
