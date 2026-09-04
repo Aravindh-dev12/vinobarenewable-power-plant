@@ -131,9 +131,11 @@ function curveIsPrevious(){return curveDate()!==indiaDate();}
 function tickClock(){const p=indiaParts();document.getElementById('clockDisplay').textContent=`${p.hour}:${p.minute}:${p.second}`;}
 tickClock();setInterval(tickClock,1000);
 
-function inverterPower(values){
-    for(const [k,v] of Object.entries(values||{})){const s=k.toLowerCase();if(/active.*power|ac.*power|power.*ac|a\.c\..*power/.test(s)&&!/reactive|apparent|3.phase/.test(s))return num(v);}return 0;
+function inverterPowerReading(values){
+    for(const [k,v] of Object.entries(values||{})){const s=k.toLowerCase();if(/active.*power|ac.*power|power.*ac|a\.c\..*power/.test(s)&&!/reactive|apparent|3.phase/.test(s))return {seen:true,value:num(v)};}
+    return {seen:false,value:null};
 }
+function inverterPower(values){const r=inverterPowerReading(values);return r.seen?r.value:0;}
 function inverterDaily(values){for(const [k,v] of Object.entries(values||{}))if(/daily.*generation|daily.*gen/i.test(k))return num(v);return null;}
 function vcbPower(values){if(values&&values['3 Phase Active Power']!==undefined)return num(values['3 Phase Active Power']);for(const [k,v] of Object.entries(values||{})){const s=k.toLowerCase();if(/3.*phase.*active.*power|active.*power/.test(s)&&!/reactive|apparent/.test(s))return num(v);}return 0;}
 function vcbToday(message){for(const [k,v] of Object.entries(message.virtualTags||{}))if(/vcb.*today|today.*energy/i.test(k))return num(v&&typeof v==='object'?v.value:v);return null;}
@@ -152,11 +154,13 @@ function parseStrings(values){
     });
     return out.sort((a,b)=>a.n-b.n);
 }
-function totalInvPower(){return Object.values(state.inverters).filter(x=>x.received).reduce((s,x)=>s+num(x.power),0);}
-function totalInvToday(){return Object.values(state.inverters).filter(x=>x.received).reduce((s,x)=>s+num(x.daily),0);}
+function totalInvPower(){return Object.values(state.inverters).filter(x=>x.powerSeen).reduce((s,x)=>s+num(x.power),0);}
+function totalInvToday(){return Object.values(state.inverters).filter(x=>x.daily!==null&&x.daily!==undefined).reduce((s,x)=>s+num(x.daily),0);}
 function anyInvReceived(){return Object.values(state.inverters).some(x=>x.received);}
+function anyInvPowerSeen(){return Object.values(state.inverters).some(x=>x.powerSeen);}
+function anyInvDailySeen(){return Object.values(state.inverters).some(x=>x.daily!==null&&x.daily!==undefined);}
 function plantPower(){const inv=totalInvPower();return state.hasVcb&&num(state.vcbPower)>0?num(state.vcbPower):inv;}
-function plantToday(){return anyInvReceived()?totalInvToday():(state.vcbToday!==null?num(state.vcbToday):0);}
+function plantToday(){return anyInvDailySeen()?totalInvToday():(state.vcbToday!==null?num(state.vcbToday):0);}
 function setConnection(mode){
     const dot=document.getElementById('refreshPulse'),text=document.getElementById('liveText');
     if(mode==='live'){dot.className='w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse';text.textContent='LIVE';text.className='text-[10px] font-bold text-emerald-600 hidden sm:inline';}
@@ -165,7 +169,7 @@ function setConnection(mode){
     else{dot.className='w-2.5 h-2.5 bg-slate-400 rounded-full';text.textContent='CONNECTING';text.className='text-[10px] font-bold text-slate-500 hidden sm:inline';}
 }
 
-for(let i=1;i<=EXPECTED_COUNT;i++)state.inverters[`Inverter ${i}`]={deviceName:`Inverter ${i}`,power:null,daily:null,strings:[],stringsSeen:false,received:false};
+for(let i=1;i<=EXPECTED_COUNT;i++)state.inverters[`Inverter ${i}`]={deviceName:`Inverter ${i}`,power:null,powerSeen:false,daily:null,strings:[],stringsSeen:false,received:false};
 
 const chart=new Chart(document.getElementById('powerChart').getContext('2d'),{
     type:'line',
@@ -219,8 +223,10 @@ function loadWsHistory(rows,device,type){
     paintCurve('5-minute WebSocket history');
 }
 function updateLiveCurve(){
-    if(curveIsPrevious())return;const p=indiaParts(),h=Number(p.hour),m=Number(p.minute);if(h<5||h>19)return;const label=bucket5(h,m),power=plantPower();
-    if(state.hasVcb&&num(state.vcbPower)>0)vcbHistory5[label]=power;else{inverterHistory5.__live??={};inverterHistory5.__live[label]=power;}
+    if(curveIsPrevious())return;const p=indiaParts(),h=Number(p.hour),m=Number(p.minute);if(h<5||h>19)return;
+    const hasVcbPower=state.hasVcb&&num(state.vcbPower)>0;if(!hasVcbPower&&!anyInvPowerSeen())return;
+    const label=bucket5(h,m),power=plantPower();
+    if(hasVcbPower)vcbHistory5[label]=power;else{inverterHistory5.__live??={};inverterHistory5.__live[label]=power;}
     paintCurve('5-minute live curve');
 }
 function updateCurveHeading(){document.getElementById('curveTitle').innerHTML='<i class="fa-solid fa-chart-line text-blue-500 mr-2"></i>'+(curveIsPrevious()?'Generation Curve (Previous Solar Day)':'Generation Curve (Today)');}
@@ -229,10 +235,11 @@ updateCurveHeading();
 function renderInverters(){
     const names=Object.keys(state.inverters).sort((a,b)=>invNo(a)-invNo(b)||a.localeCompare(b));
     document.getElementById('inverterCount').textContent=names.filter(n=>state.inverters[n].received).length;
-    const any=anyInvReceived();document.getElementById('invSummaryPower').textContent=any?totalInvPower().toFixed(2)+' kW':'-- kW';document.getElementById('invSummaryToday').textContent=any?totalInvToday().toFixed(2)+' kWh':'-- kWh';
+    document.getElementById('invSummaryPower').textContent=anyInvPowerSeen()?totalInvPower().toFixed(2)+' kW':'-- kW';
+    document.getElementById('invSummaryToday').textContent=anyInvDailySeen()?totalInvToday().toFixed(2)+' kWh':'-- kWh';
     document.getElementById('inv_grid').innerHTML=names.map(name=>{
-        const x=state.inverters[name],expected=expectedStrings(name),active=x.strings.filter(s=>s.active).length,zero=x.received&&num(x.power)<=0.01;
-        const power=x.received?num(x.power).toFixed(1):'--',daily=x.received&&x.daily!==null?num(x.daily).toFixed(1):'--',stringText=x.stringsSeen?`${active}/${expected}`:`--/${expected}`;
+        const x=state.inverters[name],expected=expectedStrings(name),active=x.strings.filter(s=>s.active).length,zero=x.powerSeen&&num(x.power)<=0.01;
+        const power=x.powerSeen?num(x.power).toFixed(1):'--',daily=x.daily!==null&&x.daily!==undefined?num(x.daily).toFixed(1):'--',stringText=x.stringsSeen?`${active}/${expected}`:`--/${expected}`;
         return `<button type="button" data-name="${encodeURIComponent(name)}" class="inv-overview-card relative text-left rounded-xl border p-4 ${zero?'home-zero-inverter border-red-200':'bg-slate-50 border-slate-200'}">
             <div class="flex justify-between gap-3"><div><p class="text-xs font-black text-slate-700">${esc(name)}</p><p class="text-2xl font-black mt-1">${power} <span class="text-xs text-blue-600">kW</span></p></div><span class="w-8 h-8 rounded-lg border border-blue-200 bg-blue-50 text-blue-600 flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-eye text-xs"></i></span></div>
             <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-200"><div><p class="text-[9px] font-bold text-slate-400 uppercase">Today Generation</p><p class="text-xs font-black mt-1">${daily} kWh</p></div><div><p class="text-[9px] font-bold text-slate-400 uppercase">Actual Strings</p><p class="text-xs font-black mt-1 ${zero?'text-red-700':''}">${stringText}</p></div></div>
@@ -241,9 +248,10 @@ function renderInverters(){
     document.querySelectorAll('.inv-overview-card').forEach(btn=>btn.addEventListener('click',()=>openStringModal(decodeURIComponent(btn.dataset.name||''))));
 }
 function render(){
-    const power=plantPower(),today=plantToday(),has=anyInvReceived()||state.hasVcb;
-    if(has){state.peak=Math.max(state.peak,power);document.getElementById('plantPower').innerHTML=power.toFixed(2)+' <span class="text-sm font-bold text-blue-600">kW</span>';document.getElementById('plantToday').innerHTML=today.toFixed(2)+' <span class="text-sm font-bold text-purple-600">kWh</span>';document.getElementById('plantPeak').textContent=state.peak.toFixed(2);}
-    document.getElementById('todaySource').textContent=anyInvReceived()?'Sum of inverter today generation':'Waiting for inverter telemetry';
+    const power=plantPower(),today=plantToday(),hasPower=anyInvPowerSeen()||state.hasVcb,hasToday=anyInvDailySeen()||state.vcbToday!==null;
+    if(hasPower){state.peak=Math.max(state.peak,power);document.getElementById('plantPower').innerHTML=power.toFixed(2)+' <span class="text-sm font-bold text-blue-600">kW</span>';document.getElementById('plantPeak').textContent=state.peak.toFixed(2);}
+    if(hasToday)document.getElementById('plantToday').innerHTML=today.toFixed(2)+' <span class="text-sm font-bold text-purple-600">kWh</span>';
+    document.getElementById('todaySource').textContent=anyInvDailySeen()?'Sum of inverter today generation':'Waiting for inverter telemetry';
     renderInverters();updateLiveCurve();
 }
 function openStringModal(name){
@@ -267,10 +275,11 @@ function handleLive(message){
     state.lastLive=Date.now();setConnection('live');const values=message.values||{},task=String(message.task||'').toLowerCase(),deviceRaw=String(message.device||''),device=deviceRaw.toLowerCase();
     const isVcb=task==='vcb'||device.includes('vcb'),isTransformer=task==='transformer'||device.includes('transformer');
     if(isVcb){state.vcbPower=vcbPower(values);state.hasVcb=true;const today=vcbToday(message);if(today!==null)state.vcbToday=today;requestHistory(deviceRaw||'VCB');}
-    const isInv=!isVcb&&!isTransformer&&(task==='inverter'||device.includes('inverter')||Object.keys(values).some(k=>/active.*power|ac.*power|power.*ac/i.test(k)));
+    const powerReading=inverterPowerReading(values);
+    const isInv=!isVcb&&!isTransformer&&(task==='inverter'||device.includes('inverter')||powerReading.seen||Object.keys(values).some(k=>/string.*curr|string.*current/i.test(k)));
     if(isInv){
-        const key=canonicalInvName(deviceRaw||'Inverter'),old=state.inverters[key]||{power:null,daily:null,strings:[],stringsSeen:false,received:false},daily=inverterDaily(values),strings=parseStrings(values);
-        state.inverters[key]={deviceName:deviceRaw||key,power:inverterPower(values),daily:daily===null?old.daily:daily,strings:strings.length?strings:old.strings,stringsSeen:strings.length?true:old.stringsSeen,received:true};requestHistory(deviceRaw||key);
+        const key=canonicalInvName(deviceRaw||'Inverter'),old=state.inverters[key]||{power:null,powerSeen:false,daily:null,strings:[],stringsSeen:false,received:false},daily=inverterDaily(values),strings=parseStrings(values);
+        state.inverters[key]={deviceName:deviceRaw||key,power:powerReading.seen?powerReading.value:old.power,powerSeen:powerReading.seen||old.powerSeen,daily:daily===null?old.daily:daily,strings:strings.length?strings:old.strings,stringsSeen:strings.length?true:old.stringsSeen,received:true};requestHistory(deviceRaw||key);
     }
     let wmsTouched=false;
     for(const [k,v] of Object.entries(values)){
@@ -294,7 +303,7 @@ async function fetchCurveHistory(){
 }
 async function dbFallback(){
     if(Date.now()-state.lastLive<20000)return;
-    try{const p=indiaParts(),mins=Number(p.hour)*60+Number(p.minute),q=new URLSearchParams({tab:'inv_vcb',type:'daily',date:indiaDate(),plant:CURRENT_PLANT});if(TOKEN)q.set('token',TOKEN);const response=await fetch('api_reports.php?'+q.toString(),{cache:'no-store',headers:TOKEN?{Authorization:'Bearer '+TOKEN}:{}}),json=await response.json();if(!json.success||!Array.isArray(json.data))return;const elapsed=json.data.filter(row=>{const m=String(row.time_label||'').match(/^(\d+):(\d+)/);return m&&Number(m[1])*60+Number(m[2])<=mins;});if(!elapsed.length)return;const row=elapsed.at(-1),names=json.meta?.inv_names||[];names.forEach((name,i)=>{const key=canonicalInvName(name),old=state.inverters[key]||{strings:[],stringsSeen:false};state.inverters[key]={deviceName:name,power:num(row['inv'+(i+1)+'_kw']),daily:num(row['inv'+(i+1)+'_kwh']),strings:old.strings||[],stringsSeen:old.stringsSeen||false,received:true};});state.vcbPower=num(row.vcb_kw);state.hasVcb=!!json.meta?.ht_available;state.vcbToday=json.meta?.ht_available?num(row.vcb_kwh):null;setConnection('db');render();}catch(_){}
+    try{const p=indiaParts(),mins=Number(p.hour)*60+Number(p.minute),q=new URLSearchParams({tab:'inv_vcb',type:'daily',date:indiaDate(),plant:CURRENT_PLANT});if(TOKEN)q.set('token',TOKEN);const response=await fetch('api_reports.php?'+q.toString(),{cache:'no-store',headers:TOKEN?{Authorization:'Bearer '+TOKEN}:{}}),json=await response.json();if(!json.success||!Array.isArray(json.data))return;const elapsed=json.data.filter(row=>{const m=String(row.time_label||'').match(/^(\d+):(\d+)/);return m&&Number(m[1])*60+Number(m[2])<=mins;});if(!elapsed.length)return;const row=elapsed.at(-1),names=json.meta?.inv_names||[];names.forEach((name,i)=>{const key=canonicalInvName(name),old=state.inverters[key]||{strings:[],stringsSeen:false};state.inverters[key]={deviceName:name,power:num(row['inv'+(i+1)+'_kw']),powerSeen:true,daily:num(row['inv'+(i+1)+'_kwh']),strings:old.strings||[],stringsSeen:old.stringsSeen||false,received:true};});state.vcbPower=num(row.vcb_kw);state.hasVcb=!!json.meta?.ht_available;state.vcbToday=json.meta?.ht_available?num(row.vcb_kwh):null;setConnection('db');render();}catch(_){}
 }
 
 renderInverters();setConnection('connecting');connect();fetchCurveHistory();setTimeout(dbFallback,1500);setInterval(dbFallback,30000);
