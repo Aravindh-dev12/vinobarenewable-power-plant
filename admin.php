@@ -50,7 +50,7 @@ body{font-family:'Inter',sans-serif}.dot{width:8px;height:8px;border-radius:9999
 
 <div id="stringModal" class="fixed inset-0 bg-slate-900/50 hidden z-[100] flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div class="flex items-center justify-between p-5 border-b"><div><h3 id="stringModalTitle" class="text-lg font-black">String Details</h3><p class="text-xs text-slate-500 mt-1">Live WebSocket values only</p></div><button type="button" onclick="closeStringModal()" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button></div>
+        <div class="flex items-center justify-between p-5 border-b"><div><h3 id="stringModalTitle" class="text-lg font-black">String Details</h3><p class="text-xs text-slate-500 mt-1">Live WebSocket current + voltage pairs only</p></div><button type="button" onclick="closeStringModal()" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button></div>
         <div class="p-5 overflow-y-auto"><div id="stringGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3"></div></div>
     </div>
 </div>
@@ -68,18 +68,35 @@ const fmt=(v,d=2)=>num(v).toFixed(d);
 function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function invPower(values){for(const [k,v] of Object.entries(values||{})){const s=k.toLowerCase();if(/active.*power|ac.*power|power.*ac|a\.c\..*power/.test(s)&&!/reactive|apparent|3.phase/.test(s))return num(v);}return 0;}
 function dailyGen(values){for(const [k,v] of Object.entries(values||{}))if(/daily.*generation|daily.*gen/i.test(k))return num(v);return null;}
+
+function stringChannelNumber(key){
+    const s=String(key||'').toLowerCase().replace(/[_.-]+/g,' ');
+    const explicit=s.match(/(?:string|pv(?:\s*string)?|input)\s*#?\s*(\d+)/i) || s.match(/(\d+)\s*(?:string|pv(?:\s*string)?)/i);
+    if(explicit) return Number(explicit[1]);
+    if(/phase|frequency|freq|temperature|temp|ambient|reactive|apparent|power|energy|generation|co2|working|hour|mppt|grid|load|total|efficiency|factor|cosphi|thd|alarm|status/.test(s)) return null;
+    if(!/(?:curr|current|amp|volt|voltage)/.test(s)) return null;
+    const m=s.match(/\b(\d+)\b/); if(!m) return null;
+    const residual=s
+        .replace(/\b(?:curr(?:ent)?|amp(?:ere)?s?|volt(?:age)?)\b/g,' ')
+        .replace(new RegExp('\\b'+m[1]+'\\b','g'),' ')
+        .replace(/\b(?:ch|channel|input|string|pv)\b/g,' ')
+        .replace(/\s+/g,' ').trim();
+    return residual==='' ? Number(m[1]) : null;
+}
 function parseStrings(values){
     const groups={};
     for(const key of Object.keys(values||{})){
+        const no=stringChannelNumber(key); if(no===null) continue;
         const lower=key.toLowerCase();
-        if(/phase|3\.phase|three\.phase|freq|temperature|temp|ambient|reactive|apparent|inverter.*curr|inv.*curr|total.*curr|grid.*curr|load.*curr|mppt.*curr|dc.*curr/.test(lower))continue;
-        const m=key.match(/(\d+)/);if(!m)continue;(groups[Number(m[1])]??=[]).push(key);
+        if(!groups[no]) groups[no]={currKey:'',voltKey:''};
+        if(!groups[no].currKey && /curr|current|amp/.test(lower) && !/volt|voltage/.test(lower)) groups[no].currKey=key;
+        if(!groups[no].voltKey && /volt|voltage/.test(lower) && !/curr|current|amp/.test(lower)) groups[no].voltKey=key;
     }
     const out=[];
-    Object.entries(groups).forEach(([no,keys])=>{
-        let ck='',vk='';
-        for(const key of keys){const lower=key.toLowerCase();if(!ck&&/curr|current|amp/.test(lower)&&!/volt|voltage/.test(lower))ck=key;if(!vk&&/volt|voltage/.test(lower)&&!/curr|current|amp/.test(lower))vk=key;}
-        if(!ck)return;const curr=num(values[ck]),volt=vk?num(values[vk]):0;out.push({n:Number(no),curr,volt,active:curr>0.5});
+    Object.entries(groups).forEach(([no,pair])=>{
+        if(!pair.currKey || !pair.voltKey) return;
+        const curr=num(values[pair.currKey]),volt=num(values[pair.voltKey]);
+        out.push({n:Number(no),curr,volt,active:curr>0.5,currKey:pair.currKey,voltKey:pair.voltKey});
     });
     return out.sort((a,b)=>a.n-b.n);
 }
@@ -102,7 +119,7 @@ function updatePlant(id){
     const live=Date.now()-st.lastLive<20000,badge=document.getElementById('badge-'+id);badge.className='text-[10px] font-bold px-2.5 py-1 rounded-full '+(live?'bg-emerald-100 text-emerald-700':'bg-slate-100 text-slate-500');badge.textContent=live?'LIVE':'WAITING';
     const names=Object.keys(st.inverters).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));document.getElementById('invCount-'+id).textContent=names.length+' inverter'+(names.length===1?'':'s')+' detected';
     const box=document.getElementById('inv-'+id);
-    if(names.length){box.innerHTML=names.map(name=>{const inv=st.inverters[name],online=num(inv.power)>0.01,strings=inv.strings||[],active=strings.filter(s=>s.active).length,hasLive=inv.stringSource==='websocket'&&strings.length>0;return `<div class="flex items-center justify-between gap-3 px-2 py-2.5 border-b border-slate-100 last:border-0"><div class="flex items-center gap-2 min-w-0"><span class="dot ${online?'bg-emerald-500':'bg-slate-300'}"></span><span class="text-xs font-black truncate">${esc(name)}</span></div><div class="flex items-center gap-3 shrink-0"><span class="text-[11px] font-black">${fmt(inv.power,1)} kW</span><span class="text-[10px] ${hasLive?'text-slate-500':'text-slate-400'}">${hasLive?active+'/'+strings.length+' strings':'No live string data'}</span><button type="button" class="admin-eye w-7 h-7 rounded-md border ${hasLive?'border-blue-200 text-blue-600 hover:bg-blue-50':'border-slate-200 text-slate-300 cursor-not-allowed'} flex items-center justify-center" data-plant="${id}" data-name="${encodeURIComponent(name)}" ${hasLive?'':'disabled'} title="View live strings"><i class="fa-solid fa-eye"></i></button></div></div>`;}).join('');}
+    if(names.length){box.innerHTML=names.map(name=>{const inv=st.inverters[name],strings=inv.strings||[],active=strings.filter(s=>s.active).length,hasLive=inv.stringSource==='websocket'&&strings.length>0;return `<div class="flex items-center justify-between gap-3 px-2 py-2.5 border-b border-slate-100 last:border-0"><div class="min-w-0"><span class="text-xs font-black truncate block">${esc(name)}</span><span class="text-[10px] text-slate-400">${hasLive?active+'/'+strings.length+' verified strings':'No verified live string pairs'}</span></div><div class="flex items-center gap-3 shrink-0"><span class="text-[11px] font-black">${fmt(inv.power,1)} kW</span><button type="button" class="admin-eye w-8 h-8 rounded-md border ${hasLive?'border-blue-200 text-blue-600 hover:bg-blue-50':'border-slate-200 text-slate-300 cursor-not-allowed'} flex items-center justify-center" data-plant="${id}" data-name="${encodeURIComponent(name)}" ${hasLive?'':'disabled'} title="View verified live strings"><i class="fa-solid fa-eye"></i></button></div></div>`;}).join('');}
     box.querySelectorAll('.admin-eye:not([disabled])').forEach(btn=>btn.addEventListener('click',()=>openAdminStrings(btn.dataset.plant,decodeURIComponent(btn.dataset.name||''))));
     updateOverall();updatePortfolioStatus();
 }
@@ -114,11 +131,22 @@ function handleMessage(d){
     if(isVCB&&values['3 Phase Active Power']!==undefined){st.vcbPower=num(values['3 Phase Active Power']);st.hasVCB=true;}
     let vcbToday=null;for(const [k,v] of Object.entries(d.virtualTags||{})){if(/vcb.*today|today.*energy/i.test(k)){vcbToday=num(v&&typeof v==='object'?v.value:v);break;}}if(vcbToday!==null&&vcbToday>=0)st.dailyEnergy=vcbToday;
     const parsed=parseStrings(values),isInv=!isVCB&&(task==='inverter'||device.includes('inverter')||keys.some(k=>/active.*power|ac.*power|power.*ac/i.test(k))||parsed.length>0);
-    if(isInv){const name=dev||'Inverter',old=st.inverters[name]||{},daily=dailyGen(values);st.inverters[name]={...old,power:invPower(values),daily:daily===null?num(old.daily):daily};if(parsed.length){st.inverters[name].strings=parsed;st.inverters[name].stringSource='websocket';}if(!(vcbToday!==null&&vcbToday>0))st.dailyEnergy=Object.values(st.inverters).reduce((s,x)=>s+num(x.daily),0);}
+    if(isInv){
+        const name=dev||'Inverter',old=st.inverters[name]||{},daily=dailyGen(values);
+        st.inverters[name]={...old,power:invPower(values),daily:daily===null?num(old.daily):daily};
+        if(parsed.length){st.inverters[name].strings=parsed;st.inverters[name].stringSource='websocket';}
+        if(!(vcbToday!==null&&vcbToday>0))st.dailyEnergy=Object.values(st.inverters).reduce((s,x)=>s+num(x.daily),0);
+    }
     if(!isVCB&&!isInv)return;st.lastLive=Date.now();st.lastUpdate=d.time||d.timestamp||new Date().toLocaleTimeString('en-IN',{hour12:false});updatePlant(id);
 }
 
-function openAdminStrings(plantId,name){const inv=state[plantId]?.inverters?.[name];if(!inv)return;document.getElementById('stringModalTitle').textContent=name+' - String Details';const strings=inv.stringSource==='websocket'?(inv.strings||[]):[];document.getElementById('stringGrid').innerHTML=strings.length?strings.map(s=>`<div class="rounded-lg border ${s.active?'border-emerald-200 bg-emerald-50':'border-slate-200 bg-slate-50'} p-3 text-center"><p class="text-[10px] font-black">STRING ${s.n}</p><p class="text-lg font-black mt-1">${fmt(s.curr,2)} A</p><p class="text-[10px] text-slate-500 mt-1">${s.volt?fmt(s.volt,1)+' V':'Voltage unavailable'}</p></div>`).join(''):'<p class="col-span-full text-center text-sm text-slate-400 py-8">No live string telemetry available.</p>';document.getElementById('stringModal').classList.remove('hidden');}
+function openAdminStrings(plantId,name){
+    const inv=state[plantId]?.inverters?.[name];if(!inv)return;
+    document.getElementById('stringModalTitle').textContent=name+' - String Details';
+    const strings=inv.stringSource==='websocket'?(inv.strings||[]):[];
+    document.getElementById('stringGrid').innerHTML=strings.length?strings.map(s=>`<div class="rounded-lg border ${s.active?'border-emerald-200 bg-emerald-50':'border-slate-200 bg-slate-50'} p-3 text-center"><p class="text-[10px] font-black">STRING ${s.n}</p><p class="text-lg font-black mt-1">${fmt(s.curr,2)} A</p><p class="text-[10px] text-slate-500 mt-1">${fmt(s.volt,1)} V</p></div>`).join(''):'<p class="col-span-full text-center text-sm text-slate-400 py-8">No verified live current/voltage string pairs.</p>';
+    document.getElementById('stringModal').classList.remove('hidden');
+}
 function closeStringModal(){document.getElementById('stringModal').classList.add('hidden');}window.closeStringModal=closeStringModal;document.getElementById('stringModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeStringModal();});
 
 function updatePortfolioStatus(){const liveCount=plants.filter(p=>Date.now()-state[p.id].lastLive<20000).length,all=liveCount===plants.length,some=liveCount>0;const el=document.getElementById('wsStatus');el.innerHTML=`<span class="dot ${all?'bg-emerald-500':some?'bg-amber-500':'bg-red-500'}"></span>${all?'All plants live':liveCount+'/'+plants.length+' live'}`;el.className='text-xs font-bold flex items-center gap-1.5 '+(all?'text-emerald-600':some?'text-amber-600':'text-red-600');const p=document.getElementById('portfolioLive');p.textContent=all?'ALL PLANTS LIVE':liveCount+'/'+plants.length+' LIVE';p.className='text-[10px] font-bold rounded-full px-3 py-1.5 '+(all?'bg-emerald-100 text-emerald-700':some?'bg-amber-100 text-amber-700':'bg-red-50 text-red-700');}
