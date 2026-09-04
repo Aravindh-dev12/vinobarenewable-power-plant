@@ -183,11 +183,17 @@ function curveLabels(){
 function historyClock(raw){const m=String(raw||'').match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);return m?{h:Number(m[1]),m:Number(m[2])}:null;}
 function combinedHistory(){
     const out={},labels=curveLabels();
+    const realMaps=Object.entries(inverterHistory5).filter(([name])=>!name.startsWith('__')).map(([,map])=>map);
     labels.forEach(label=>{
         const v=num(vcbHistory5[label]);
-        let inv=0,hasInv=false;
-        Object.values(inverterHistory5).forEach(map=>{if(map[label]!==undefined){inv+=num(map[label]);hasInv=true;}});
-        if(v>0)out[label]=v;else if(hasInv)out[label]=inv;
+        if(v>0){out[label]=v;return;}
+        const live=inverterHistory5.__live?.[label];
+        if(live!==undefined){out[label]=num(live);return;}
+        let inv=0,hasReal=false;
+        realMaps.forEach(map=>{if(map[label]!==undefined){inv+=num(map[label]);hasReal=true;}});
+        if(hasReal){out[label]=inv;return;}
+        const db=inverterHistory5.__db?.[label];
+        if(db!==undefined)out[label]=num(db);
     });
     return out;
 }
