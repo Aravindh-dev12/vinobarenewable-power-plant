@@ -146,7 +146,8 @@ function updatePlant(id){
     if(names.length){
         box.innerHTML=names.map(name=>{
             const inv=st.inverters[name], expected=expectedStrings(id,name), active=inv.stringStats?.active ?? 0, zero=inv.received && num(inv.power)<=0.01;
-            return `<div class="${zero?'zero-inverter':''} flex items-center justify-between gap-3 px-3 py-3 border-b border-slate-100 last:border-0 rounded-md"><div class="min-w-0"><span class="text-xs font-black truncate block">${esc(name)}</span><span class="text-[10px] ${zero?'text-red-700 font-bold':'text-slate-500'}">${active}/${expected} strings</span></div><span class="text-[11px] font-black shrink-0 ${zero?'text-red-700':'text-slate-800'}">${fmt(inv.power,1)} kW</span></div>`;
+            const stringText=inv.stringStats?`${active}/${expected} strings`:`--/${expected} strings`;
+            return `<div class="${zero?'zero-inverter':''} flex items-center justify-between gap-3 px-3 py-3 border-b border-slate-100 last:border-0 rounded-md"><div class="min-w-0"><span class="text-xs font-black truncate block">${esc(name)}</span><span class="text-[10px] ${zero?'text-red-700 font-bold':'text-slate-500'}">${stringText}</span></div><span class="text-[11px] font-black shrink-0 ${zero?'text-red-700':'text-slate-800'}">${fmt(inv.power,1)} kW</span></div>`;
         }).join('');
     }
     updateOverall(); updatePortfolioStatus();
