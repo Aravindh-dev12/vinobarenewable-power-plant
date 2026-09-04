@@ -79,33 +79,26 @@ function readFrame($socket, float $deadline): ?array {
     return ['opcode' => $opcode, 'payload' => $payload];
 }
 
-function openWebSocketTarget(array $target): ?array {
-    $host = (string)$target['host'];
-    $port = (int)$target['port'];
-    $transport = (string)$target['transport'];
-    $hostHeader = (string)($target['host_header'] ?? ($host . ':' . $port));
-    $path = (string)($target['path'] ?? '/');
-    $context = null;
-
-    if ($transport === 'tls') {
-        $context = stream_context_create([
-            'ssl' => [
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-                'peer_name' => $host,
-                'SNI_enabled' => true,
-                'allow_self_signed' => false,
-            ],
-        ]);
-    }
+function openVinobaWebSocket(): mixed {
+    $host = 'vinobasolar.scadahub.in';
+    $port = 5001;
+    $context = stream_context_create([
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+            'peer_name' => $host,
+            'SNI_enabled' => true,
+            'allow_self_signed' => false,
+        ],
+    ]);
 
     $errno = 0;
     $errstr = '';
     $socket = @stream_socket_client(
-        $transport . '://' . $host . ':' . $port,
+        'tls://' . $host . ':' . $port,
         $errno,
         $errstr,
-        1.8,
+        2.0,
         STREAM_CLIENT_CONNECT,
         $context
     );
@@ -113,8 +106,8 @@ function openWebSocketTarget(array $target): ?array {
 
     stream_set_timeout($socket, 2);
     $key = base64_encode(random_bytes(16));
-    $request = "GET {$path} HTTP/1.1\r\n"
-        . "Host: {$hostHeader}\r\n"
+    $request = "GET / HTTP/1.1\r\n"
+        . "Host: {$host}:{$port}\r\n"
         . "Upgrade: websocket\r\n"
         . "Connection: Upgrade\r\n"
         . "Sec-WebSocket-Key: {$key}\r\n"
@@ -122,7 +115,7 @@ function openWebSocketTarget(array $target): ?array {
     @fwrite($socket, $request);
 
     $response = '';
-    $deadline = microtime(true) + 1.8;
+    $deadline = microtime(true) + 2.0;
     while (microtime(true) < $deadline) {
         $line = @fgets($socket);
         if ($line === false) { usleep(1000); continue; }
@@ -133,8 +126,7 @@ function openWebSocketTarget(array $target): ?array {
         @fclose($socket);
         return null;
     }
-
-    return [$socket, (string)$target['source']];
+    return $socket;
 }
 
 function incomingPlantId(array $message): string {
@@ -168,58 +160,10 @@ function normalizeLiveMessage(array $message, string $plant): array {
     )) {
         $message = array_merge($message, $nested);
     }
-
-    if (!isset($message['device']) && isset($message['deviceName'])) {
-        $message['device'] = $message['deviceName'];
-    }
-    if (!isset($message['values']) && isset($message['tags']) && is_array($message['tags'])) {
-        $message['values'] = $message['tags'];
-    }
-
+    if (!isset($message['device']) && isset($message['deviceName'])) $message['device'] = $message['deviceName'];
+    if (!isset($message['values']) && isset($message['tags']) && is_array($message['tags'])) $message['values'] = $message['tags'];
     $message['unit_id'] = $plant;
     return $message;
-}
-
-function collectFromTarget(array $target, string $plant): ?array {
-    $opened = openWebSocketTarget($target);
-    if ($opened === null) return null;
-
-    [$socket, $source] = $opened;
-    sendTextFrame($socket, json_encode([
-        'type' => 'subscribe',
-        'unit_id' => $plant,
-    ], JSON_UNESCAPED_SLASHES));
-
-    stream_set_blocking($socket, false);
-    $messages = [];
-    $deadline = microtime(true) + 2.2;
-
-    while (microtime(true) < $deadline && count($messages) < 60) {
-        $read = [$socket];
-        $write = null;
-        $except = null;
-        $remaining = max(0, $deadline - microtime(true));
-        $sec = (int)$remaining;
-        $usec = (int)(($remaining - $sec) * 1000000);
-        $ready = @stream_select($read, $write, $except, $sec, $usec);
-        if (!$ready) break;
-
-        $frame = readFrame($socket, $deadline);
-        if ($frame === null) break;
-        if ($frame['opcode'] === 0x8) break;
-        if ($frame['opcode'] !== 0x1) continue;
-
-        $data = json_decode($frame['payload'], true);
-        if (!is_array($data)) continue;
-
-        $incoming = incomingPlantId($data);
-        if ($incoming !== '' && $incoming !== $plant) continue;
-
-        $messages[] = normalizeLiveMessage($data, $plant);
-    }
-
-    @fclose($socket);
-    return ['source' => $source, 'messages' => $messages];
 }
 
 if (!isset($conn) || !($conn instanceof mysqli) || $conn->connect_error) {
@@ -246,63 +190,51 @@ if (!is_valid_plant_id($plant)) {
     liveJson(403, ['success' => false, 'message' => 'Plant access unavailable']);
 }
 
-$targets = [
-    ['transport' => 'tcp', 'host' => '161.97.87.75', 'port' => 5000, 'path' => '/', 'source' => 'ws://161.97.87.75:5000'],
-];
-
-$configuredHost = trim((string)(getenv('SCADA_WS_HOST') ?: ''));
-$configuredPort = (int)(getenv('SCADA_WS_PORT') ?: 5000);
-if ($configuredHost !== '' && $configuredHost !== '161.97.87.75') {
-    $targets[] = [
-        'transport' => 'tcp',
-        'host' => $configuredHost,
-        'port' => $configuredPort,
-        'path' => '/',
-        'source' => 'ws://' . $configuredHost . ':' . $configuredPort,
-    ];
-}
-
-$targets[] = ['transport' => 'tcp', 'host' => '127.0.0.1', 'port' => 5000, 'path' => '/', 'source' => 'ws://127.0.0.1:5000'];
-$targets[] = [
-    'transport' => 'tls',
-    'host' => 'vinobasolar.scadahub.in',
-    'port' => 5001,
-    'path' => '/',
-    'host_header' => 'vinobasolar.scadahub.in:5001',
-    'source' => 'wss://vinobasolar.scadahub.in:5001',
-];
-
-$firstConnectedSource = '';
-foreach ($targets as $target) {
-    $result = collectFromTarget($target, $plant);
-    if ($result === null) continue;
-    if ($firstConnectedSource === '') $firstConnectedSource = $result['source'];
-
-    if (count($result['messages']) === 0) continue;
-
-    liveJson(200, [
-        'success' => true,
-        'messages' => $result['messages'],
-        'received' => count($result['messages']),
-        'plant_id' => $plant,
-        'source' => $result['source'],
-    ]);
-}
-
-if ($firstConnectedSource !== '') {
-    liveJson(200, [
-        'success' => true,
+$socket = openVinobaWebSocket();
+if (!$socket) {
+    liveJson(503, [
+        'success' => false,
+        'message' => 'Vinoba secure WebSocket unavailable',
         'messages' => [],
-        'received' => 0,
         'plant_id' => $plant,
-        'source' => $firstConnectedSource,
-        'message' => 'Connected but no telemetry received during snapshot window',
+        'source' => 'wss://vinobasolar.scadahub.in:5001',
     ]);
 }
 
-liveJson(503, [
-    'success' => false,
-    'message' => 'Live SCADA source unavailable',
-    'messages' => [],
+sendTextFrame($socket, json_encode([
+    'type' => 'subscribe',
+    'unit_id' => $plant,
+], JSON_UNESCAPED_SLASHES));
+
+stream_set_blocking($socket, false);
+$messages = [];
+$deadline = microtime(true) + 2.2;
+while (microtime(true) < $deadline && count($messages) < 60) {
+    $read = [$socket];
+    $write = null;
+    $except = null;
+    $remaining = max(0, $deadline - microtime(true));
+    $sec = (int)$remaining;
+    $usec = (int)(($remaining - $sec) * 1000000);
+    $ready = @stream_select($read, $write, $except, $sec, $usec);
+    if (!$ready) break;
+
+    $frame = readFrame($socket, $deadline);
+    if ($frame === null || $frame['opcode'] === 0x8) break;
+    if ($frame['opcode'] !== 0x1) continue;
+
+    $data = json_decode($frame['payload'], true);
+    if (!is_array($data)) continue;
+    $incoming = incomingPlantId($data);
+    if ($incoming !== '' && $incoming !== $plant) continue;
+    $messages[] = normalizeLiveMessage($data, $plant);
+}
+@fclose($socket);
+
+liveJson(200, [
+    'success' => true,
+    'messages' => $messages,
+    'received' => count($messages),
     'plant_id' => $plant,
+    'source' => 'wss://vinobasolar.scadahub.in:5001',
 ]);
