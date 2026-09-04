@@ -8,14 +8,14 @@ function plant_catalog(): array
             'name' => 'Vinoba Renewable Energy Private Limited',
             'service_number' => '06914430133',
             'capacity' => 2.0,
-            'location' => 'Karur',
+            'location' => '',
         ],
         'ssv' => [
             'id' => 'ssv',
             'name' => 'SSV Green Power Private Limited',
             'service_number' => '06914430134',
-            'capacity' => 2.0,
-            'location' => 'Karur',
+            'capacity' => 1.0,
+            'location' => '',
         ],
     ];
 }
